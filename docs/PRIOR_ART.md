@@ -12,7 +12,7 @@ does not claim invention of prefix caching, slot state, or cache benchmarking.
 - [MLCommons KV-cache benchmark](https://github.com/mlcommons/storage/tree/main/kv_cache_benchmark)
   addresses cache performance and storage behavior at a broader benchmark
   layer.
-- [SGLang server arguments](https://docs.sglang.io/advanced_features/server_arguments.html)
+- [SGLang server arguments](https://docs.sglang.io/docs/advanced_features/server_arguments)
   expose scheduling, preemption, and cache-eviction controls in another
   runtime.
 - [Strata at OSDI 2026](https://www.usenix.org/conference/osdi26/presentation/xie-zhiqiang)
