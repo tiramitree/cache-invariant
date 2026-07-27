@@ -44,6 +44,16 @@ def test_bundled_v0_1_evidence_remains_offline_verifiable() -> None:
     }
 
 
+def test_bundled_v0_2_evidence_is_offline_verifiable() -> None:
+    root = Path(__file__).resolve().parents[1]
+    summary = verify_bundle(root / "evidence" / "reference-v0.2.0-windows")
+    assert summary == {
+        "invariant_count": 57,
+        "platform": "windows-x86_64",
+        "schema": "cache-invariant-evidence-v2",
+    }
+
+
 def test_bundle_symlink_is_rejected(
     tmp_path: Path,
     valid_evidence: dict,

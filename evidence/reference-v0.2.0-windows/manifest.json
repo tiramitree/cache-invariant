@@ -1,0 +1,15 @@
+{
+  "files": [
+    {
+      "bytes": 25037,
+      "path": "evidence.json",
+      "sha256": "515a359cdaa3908764de4c1360574a2318d99f0d3ec9c9d20226359461b51ed6"
+    },
+    {
+      "bytes": 6065,
+      "path": "junit.xml",
+      "sha256": "f33a51762a7e907732b7d97203702429d173333a844e21f455ef85e741c56aa1"
+    }
+  ],
+  "schema": "cache-invariant-manifest-v1"
+}
