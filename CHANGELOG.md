@@ -10,8 +10,8 @@
 - Register one predicted token explicitly and make no output-free claim.
 - Add strict schema-v3 verification while preserving byte-exact offline
   verification of the bundled schema-v1 and schema-v2 evidence.
-- Leave v3 reference evidence uncommitted until the complete registered lane is
-  run and verified from a source-bound revision.
+- Add a source-bound Windows schema-v3 reference after the complete registered
+  lane passed locally and in the public Windows and Ubuntu integration jobs.
 
 ## 0.2.0
 

@@ -52,6 +52,6 @@ The dual-stream record retains `both_processing_observed` and
 not used to claim concurrent processing or survivor liveness.
 
 The committed v0.1 and v0.2 Windows references predate the schema-v3
-direct-token lane. A v3 source candidate without a verified v3 bundle supports
-the protocol and verifier design, not a published short-row runtime
-observation.
+direct-token lane and remain separately verifiable. The v0.3 Windows reference
+is an owner-operated, source-bound observation of only the registered short-row
+matrix; it is not an independent or cross-platform reference result.

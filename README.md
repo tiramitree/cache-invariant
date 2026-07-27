@@ -81,17 +81,12 @@ lowercase 40-hex revision being exercised.
 ## Current evidence status
 
 The bundled Windows [reference evidence](evidence/README.md) preserves the
-29-invariant v0.1 observation and records the 57-invariant v0.2
-observation, each bound to the exact source revision exercised. They are local
-observations, not independent reproduction, external adoption, production use,
-or cross-platform reference results. The workflow in
+29-invariant v0.1 observation, the 57-invariant v0.2 observation, and the
+77-invariant v0.3 observation, each bound to the exact source revision
+exercised. They are owner-operated observations, not independent reproduction,
+external adoption, production use, or cross-platform reference results. The workflow in
 `.github/workflows/ci.yml` separately exercises Windows and Ubuntu on free
 GitHub Actions without uploading generated evidence.
-
-The local v0.3.0 candidate adds the registered three-row direct-token
-prefix-divergence lane. No schema-v3 reference bundle is committed, so this
-source candidate does not present the short-row matrix as a published
-observation.
 
 ## Design and boundaries
 

@@ -55,6 +55,16 @@ def test_bundled_v0_2_evidence_is_offline_verifiable() -> None:
     }
 
 
+def test_bundled_v0_3_evidence_is_offline_verifiable() -> None:
+    root = Path(__file__).resolve().parents[1]
+    summary = verify_bundle(root / "evidence" / "reference-v0.3.0-windows")
+    assert summary == {
+        "invariant_count": 77,
+        "platform": "windows-x86_64",
+        "schema": "cache-invariant-evidence-v3",
+    }
+
+
 def test_schema_v2_evidence_mislabeled_as_v3_is_rejected() -> None:
     root = Path(__file__).resolve().parents[1]
     path = root / "evidence" / "reference-v0.2.0-windows" / "evidence.json"

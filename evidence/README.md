@@ -1,12 +1,34 @@
 # Reference evidence
 
-## v0.3.0 candidate status
+## v0.3.0 Windows
 
-The schema-v3 source candidate adds a three-row direct-token
-prefix-divergence protocol and verifier, but this tree contains no v0.3.0
-reference bundle. The committed references below remain the complete published
-runtime observations. The current verifier must continue to validate both
-bundles byte-for-byte.
+`reference-v0.3.0-windows` is a normalized observation of the registered
+`llama.cpp b10107` CPU runtime, tiny pinned fixture, and schema-v3 direct-token
+prefix-divergence protocol.
+
+- source revision:
+  `ddd56e136f4966bad84fec2ed565b25dd7351103`
+- manifest-file SHA-256:
+  `47c4e7dc81d31acc5d0df37f2ab319e62a87b46c10d5e8033b3f48e436b3e680`
+- inventory: 3 files, 41,897 bytes
+- platform: `windows-x86_64`
+- registered invariants: 77/77 true
+- converted GGUF: 1,185,504 bytes,
+  SHA-256 `da5a97120b643453a8bf0482999ee087d1bd11e75c6cc5a3dc71d2ee3c89c92d`
+
+Verify it offline:
+
+```text
+cache-invariant verify evidence/reference-v0.3.0-windows
+```
+
+The three direct-token rows observed the registered cache/work pairs:
+exact source `(0, 4)`, cache-on `(3, 1)`, cache-off `(0, 4)`; shared-prefix
+source `(0, 4)`, cache-on `(3, 2)`, cache-off `(0, 5)`; and first-token
+divergence source `(0, 4)`, cache-on `(0, 3)`, cache-off `(0, 3)`. These are
+bounded token counters, not timings or performance measurements. One predicted
+token was registered and observed for each request, but generated content and
+generated token values were discarded and are not compared.
 
 ## v0.2.0 Windows
 
