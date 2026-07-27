@@ -6,16 +6,18 @@ import stat
 from pathlib import Path
 from typing import Any
 
-from .oracle import all_invariants
+from .oracle import all_invariants, all_invariants_v1
 from .pins import (
     CHECKPOINT,
     EVIDENCE_SCHEMA,
+    EVIDENCE_SCHEMA_V1,
     FIXTURE_SOURCE_REVISION,
     GGUF_SHA256,
     MANIFEST_SCHEMA,
     PACKAGE_VERSION,
     RUNTIME_ASSETS,
     RUNTIME_CONTEXT_TOTAL,
+    RUNTIME_CONTEXT_TOTAL_V1,
     RUNTIME_RELEASE,
     RUNTIME_SERVER_PINS,
     RUNTIME_SLOT_COUNT,
@@ -23,7 +25,7 @@ from .pins import (
     RUNTIME_VERSION_LINE,
     TOKENIZER,
 )
-from .registration import registered_scenarios
+from .registration import registered_scenarios, registered_scenarios_v1
 from .util import (
     load_json_strict,
     reject_reparse_chain,
@@ -135,6 +137,76 @@ def _validate_cancellation(value: object) -> dict[str, Any]:
     return result
 
 
+def _validate_interleaving_direction(
+    value: object,
+    label: str,
+) -> dict[str, Any]:
+    result = require_exact_keys(
+        value,
+        {
+            "both_idle_after_second_disconnect",
+            "both_first_events_before_disconnect",
+            "both_processing_observed",
+            "cancelled_slot_idle_after_first_disconnect",
+            "reuses",
+            "slot_0_first_event_nonterminal",
+            "slot_0_first_event_observed",
+            "slot_1_first_event_nonterminal",
+            "slot_1_first_event_observed",
+            "survivor_active_after_first_disconnect",
+        },
+        label,
+    )
+    reuses = require_exact_keys(
+        result["reuses"],
+        {"slot_0", "slot_1"},
+        f"{label}.reuses",
+    )
+    for name in sorted(reuses):
+        _validate_case(reuses[name], f"{label}.reuses.{name}")
+    for key in (
+        "both_idle_after_second_disconnect",
+        "both_first_events_before_disconnect",
+        "both_processing_observed",
+        "cancelled_slot_idle_after_first_disconnect",
+        "slot_0_first_event_nonterminal",
+        "slot_0_first_event_observed",
+        "slot_1_first_event_nonterminal",
+        "slot_1_first_event_observed",
+        "survivor_active_after_first_disconnect",
+    ):
+        _require_bool(result[key], f"{label}.{key}")
+    return result
+
+
+def _validate_interleaving(value: object) -> dict[str, Any]:
+    result = require_exact_keys(
+        value,
+        {
+            "baselines",
+            "slot_0_cancelled_first",
+            "slot_1_cancelled_first",
+        },
+        "interleaving_isolation",
+    )
+    baselines = require_exact_keys(
+        result["baselines"],
+        {"slot_0", "slot_1"},
+        "interleaving_isolation.baselines",
+    )
+    for name in sorted(baselines):
+        _validate_case(
+            baselines[name],
+            f"interleaving_isolation.baselines.{name}",
+        )
+    for name in ("slot_0_cancelled_first", "slot_1_cancelled_first"):
+        _validate_interleaving_direction(
+            result[name],
+            f"interleaving_isolation.{name}",
+        )
+    return result
+
+
 def _validate_save_restore(value: object) -> dict[str, Any]:
     result = require_exact_keys(
         value,
@@ -178,35 +250,46 @@ def _validate_save_restore(value: object) -> dict[str, Any]:
 
 
 def validate_evidence(value: object) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ValueError("evidence must be an object")
+    schema = value.get("schema")
+    if schema not in {EVIDENCE_SCHEMA_V1, EVIDENCE_SCHEMA}:
+        raise ValueError("evidence schema is not registered")
+    legacy = schema == EVIDENCE_SCHEMA_V1
+    expected_keys = {
+        "boundary",
+        "cache_pairing",
+        "cancellation_reuse",
+        "fixture",
+        "invariants",
+        "producer",
+        "registration",
+        "runtime",
+        "save_restore",
+        "schema",
+        "source_revision",
+        "transport",
+    }
+    if not legacy:
+        expected_keys.add("interleaving_isolation")
     evidence = require_exact_keys(
         value,
-        {
-            "boundary",
-            "cache_pairing",
-            "cancellation_reuse",
-            "fixture",
-            "invariants",
-            "producer",
-            "registration",
-            "runtime",
-            "save_restore",
-            "schema",
-            "source_revision",
-            "transport",
-        },
+        expected_keys,
         "evidence",
     )
-    if evidence["schema"] != EVIDENCE_SCHEMA:
-        raise ValueError("evidence schema is not registered")
     producer = require_exact_keys(
         evidence["producer"],
         {"name", "version"},
         "producer",
     )
-    if producer != {"name": "cache-invariant", "version": PACKAGE_VERSION}:
+    expected_version = "0.1.0" if legacy else PACKAGE_VERSION
+    if producer != {"name": "cache-invariant", "version": expected_version}:
         raise ValueError("evidence producer is not registered")
     require_source_revision(evidence["source_revision"], "source_revision")
-    if evidence["registration"] != registered_scenarios():
+    expected_registration = (
+        registered_scenarios_v1() if legacy else registered_scenarios()
+    )
+    if evidence["registration"] != expected_registration:
         raise ValueError("scenario registration differs")
 
     fixture = require_exact_keys(
@@ -252,7 +335,9 @@ def validate_evidence(value: object) -> dict[str, Any]:
         "adapter": "llama.cpp-server",
         "asset_platform": platform_key,
         "asset_sha256": RUNTIME_ASSETS[platform_key].sha256,
-        "configured_context_total": RUNTIME_CONTEXT_TOTAL,
+        "configured_context_total": (
+            RUNTIME_CONTEXT_TOTAL_V1 if legacy else RUNTIME_CONTEXT_TOTAL
+        ),
         "cpu_only": True,
         "offline": True,
         "release": RUNTIME_RELEASE,
@@ -294,8 +379,10 @@ def validate_evidence(value: object) -> dict[str, Any]:
 
     _validate_cache_pairing(evidence["cache_pairing"])
     _validate_cancellation(evidence["cancellation_reuse"])
+    if not legacy:
+        _validate_interleaving(evidence["interleaving_isolation"])
     _validate_save_restore(evidence["save_restore"])
-    computed = all_invariants(evidence)
+    computed = all_invariants_v1(evidence) if legacy else all_invariants(evidence)
     invariants = require_exact_keys(
         evidence["invariants"],
         set(computed),

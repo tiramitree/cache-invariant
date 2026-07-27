@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cache-invariant"
-version = "0.1.0"
-description = "Version-pinned inference cache correctness and slot-isolation lab"
+version = "0.2.0"
+description = "Version-pinned inference cache correctness and interleaving-isolation lab"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0 AND MIT"
@@ -47,6 +47,7 @@ packages = ["src/cache_invariant"]
 [tool.hatch.build]
 include = [
   ".github/workflows/ci.yml",
+  "CHANGELOG.md",
   "CONTRIBUTING.md",
   "src/cache_invariant/**/*.py",
   "tests/**/*.py",

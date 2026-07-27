@@ -20,6 +20,16 @@ clean slot
   -> same-slot reuse
   -> compare with other-slot clean baseline
 
+two empty slots
+  -> launch two long streams behind one start barrier
+  -> require a nonterminal event from both before either disconnects
+  -> disconnect the first registered slot
+  -> observe that cancelled slot return to idle
+  -> disconnect the second stream
+  -> observe both slots idle
+  -> reuse both slots and compare each result with its isolated baseline
+  -> repeat with the opposite launch and disconnect order
+
 empty slot
   -> cached source completion
   -> save slot state
@@ -59,12 +69,16 @@ converted GGUF hash, and checks the server's `--version` output before launch.
 The server listens only on `127.0.0.1`, has no Web UI, runs in offline mode,
 uses no GPU layers, and writes slot state only beneath a fresh run directory.
 The port and local paths never enter evidence. The registered two-slot server
-uses a bounded total context of 256 tokens. The cancellation request asks for
-the fixed 512-vocabulary probability field while the client uses a registered
-small stream receive buffer. This creates protocol backpressure so a concurrent
-`/slots` observation can see the active request before the first event is read,
-and the first event must parse as explicitly nonterminal. Probabilities,
-generated content, and elapsed-time data are not retained.
+uses a bounded total context of 4,096 tokens. The cancellation and interleaving
+requests ask for the fixed 512-vocabulary probability field while the client
+uses a registered small stream receive buffer. The single-stream cancellation
+lane requires a concurrent `/slots` observation before the first event is
+read. The dual-stream lane requires both clients to receive a syntactically
+nonterminal event before either disconnects, then runs both disconnect orders.
+A sampled `both_processing_observed` value is retained but is deliberately not
+a pass condition because the bounded sampler did not observe it in every local
+repetition. Probabilities, generated content, and elapsed-time data are not
+retained.
 
 The evidence verifier performs no network access and starts no process. It
 accepts exactly three regular files and rejects symlinks, unknown schema keys,

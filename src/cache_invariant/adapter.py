@@ -246,7 +246,7 @@ class LlamaCppClient:
             "idle_slot": self.slot_view(slot_id),
         }
 
-    def stream_then_disconnect(
+    def _open_registered_stream(
         self,
         slot_id: int,
         prompt: str,
@@ -256,10 +256,9 @@ class LlamaCppClient:
         n_predict: int,
         n_probs: int,
         receive_buffer_bytes: int,
-        active_observation_wait_ms: int,
         seed: int,
         temperature: int,
-    ) -> dict[str, bool]:
+    ) -> tuple[http.client.HTTPConnection, http.client.HTTPResponse]:
         payload = canonical_json(
             {
                 "cache_prompt": cache_prompt,
@@ -279,6 +278,44 @@ class LlamaCppClient:
             self.port,
             timeout=10.0,
         )
+        try:
+            connection.connect()
+            if connection.sock is None:
+                raise RuntimeError("streaming socket was not connected")
+            connection.sock.setsockopt(
+                socket.SOL_SOCKET,
+                socket.SO_RCVBUF,
+                receive_buffer_bytes,
+            )
+            connection.request(
+                "POST",
+                "/completion",
+                body=payload,
+                headers=self._headers(),
+            )
+            response = connection.getresponse()
+            if response.status != 200:
+                response.close()
+                raise RuntimeError(f"streaming request returned HTTP {response.status}")
+            return connection, response
+        except BaseException:
+            connection.close()
+            raise
+
+    def stream_then_disconnect(
+        self,
+        slot_id: int,
+        prompt: str,
+        *,
+        cache_prompt: bool,
+        ignore_eos: bool,
+        n_predict: int,
+        n_probs: int,
+        receive_buffer_bytes: int,
+        active_observation_wait_ms: int,
+        seed: int,
+        temperature: int,
+    ) -> dict[str, bool]:
         active_observed = threading.Event()
         sampler_ready = threading.Event()
         sampler_stop = threading.Event()
@@ -328,25 +365,20 @@ class LlamaCppClient:
             sampler_stop.set()
             sampler.join(timeout=2.0)
             raise RuntimeError("slot-state sampler did not become ready")
+        connection: http.client.HTTPConnection | None = None
         response: http.client.HTTPResponse | None = None
         try:
-            connection.connect()
-            if connection.sock is None:
-                raise RuntimeError("streaming socket was not connected")
-            connection.sock.setsockopt(
-                socket.SOL_SOCKET,
-                socket.SO_RCVBUF,
-                receive_buffer_bytes,
+            connection, response = self._open_registered_stream(
+                slot_id,
+                prompt,
+                cache_prompt=cache_prompt,
+                ignore_eos=ignore_eos,
+                n_predict=n_predict,
+                n_probs=n_probs,
+                receive_buffer_bytes=receive_buffer_bytes,
+                seed=seed,
+                temperature=temperature,
             )
-            connection.request(
-                "POST",
-                "/completion",
-                body=payload,
-                headers=self._headers(),
-            )
-            response = connection.getresponse()
-            if response.status != 200:
-                raise RuntimeError(f"streaming request returned HTTP {response.status}")
             active_observed.wait(active_observation_wait_ms / 1_000)
             first_event = response.readline(MAX_RESPONSE_BYTES + 1)
             if len(first_event) > MAX_RESPONSE_BYTES:
@@ -355,7 +387,8 @@ class LlamaCppClient:
         finally:
             if response is not None:
                 response.close()
-            connection.close()
+            if connection is not None:
+                connection.close()
             sampler_stop.set()
             sampler.join(timeout=2.0)
             if sampler.is_alive():
@@ -373,6 +406,175 @@ class LlamaCppClient:
             "first_event_observed": bool(first_event),
             "first_event_nonterminal": first_event_nonterminal,
             "idle_after_disconnect": idle_observed,
+        }
+
+    def dual_stream_disconnect(
+        self,
+        slot_prompts: tuple[str, str],
+        *,
+        cache_prompt: bool,
+        ignore_eos: bool,
+        n_predict: int,
+        n_probs: int,
+        receive_buffer_bytes: int,
+        active_observation_wait_ms: int,
+        first_disconnect_slot: int,
+        seed: int,
+        temperature: int,
+    ) -> dict[str, Any]:
+        if first_disconnect_slot not in {0, 1}:
+            raise ValueError("first disconnect slot must be one of the registered pair")
+        connections: list[http.client.HTTPConnection | None] = [None, None]
+        responses: list[http.client.HTTPResponse | None] = [None, None]
+        first_events: list[bytes] = [b"", b""]
+        first_event_ready = [threading.Event(), threading.Event()]
+        release_stream = [threading.Event(), threading.Event()]
+        start_barrier = threading.Barrier(3)
+        worker_errors: list[BaseException] = []
+        state_lock = threading.Lock()
+        both_first_events_before_disconnect = False
+        both_processing_observed = False
+        cancelled_slot_idle = False
+        survivor_active_after_first_disconnect = False
+        both_idle_after_second_disconnect = False
+        survivor_slot = 1 - first_disconnect_slot
+
+        def stream_worker(slot_id: int, prompt: str) -> None:
+            connection: http.client.HTTPConnection | None = None
+            response: http.client.HTTPResponse | None = None
+            try:
+                start_barrier.wait(timeout=2.0)
+                connection, response = self._open_registered_stream(
+                    slot_id,
+                    prompt,
+                    cache_prompt=cache_prompt,
+                    ignore_eos=ignore_eos,
+                    n_predict=n_predict,
+                    n_probs=n_probs,
+                    receive_buffer_bytes=receive_buffer_bytes,
+                    seed=seed,
+                    temperature=temperature,
+                )
+                with state_lock:
+                    connections[slot_id] = connection
+                    responses[slot_id] = response
+                first_event = response.readline(MAX_RESPONSE_BYTES + 1)
+                if len(first_event) > MAX_RESPONSE_BYTES:
+                    raise ValueError("streaming event exceeded the bounded size")
+                _stream_event_is_nonterminal(first_event)
+                with state_lock:
+                    first_events[slot_id] = first_event
+                first_event_ready[slot_id].set()
+                if not release_stream[slot_id].wait(20.0):
+                    raise TimeoutError("stream release gate exceeded its bound")
+            except BaseException as error:
+                with state_lock:
+                    worker_errors.append(error)
+                first_event_ready[slot_id].set()
+            finally:
+                if response is not None:
+                    response.close()
+                if connection is not None:
+                    connection.close()
+
+        workers = [
+            threading.Thread(
+                target=stream_worker,
+                args=(slot_id, prompt),
+                daemon=True,
+            )
+            for slot_id, prompt in enumerate(slot_prompts)
+        ]
+        try:
+            for slot in (first_disconnect_slot, survivor_slot):
+                workers[slot].start()
+            start_barrier.wait(timeout=2.0)
+
+            started = time.monotonic()
+            while time.monotonic() - started < active_observation_wait_ms / 1_000:
+                values = self.slots(timeout=0.25)
+                if all(
+                    not _slot_view_from_values(values, slot)["idle"] for slot in (0, 1)
+                ):
+                    both_processing_observed = True
+                    break
+                if all(event.is_set() for event in first_event_ready):
+                    break
+                time.sleep(0.001)
+
+            if not all(event.wait(5.0) for event in first_event_ready):
+                raise TimeoutError("dual stream events exceeded their bounded wait")
+            both_first_events_before_disconnect = True
+            release_stream[first_disconnect_slot].set()
+
+            started = time.monotonic()
+            while time.monotonic() - started < 15.0:
+                values = self.slots(timeout=0.25)
+                first_idle = _slot_view_from_values(
+                    values,
+                    first_disconnect_slot,
+                )["idle"]
+                survivor_active = not _slot_view_from_values(
+                    values,
+                    survivor_slot,
+                )["idle"]
+                if first_idle:
+                    cancelled_slot_idle = True
+                    survivor_active_after_first_disconnect = survivor_active
+                    break
+                time.sleep(0.01)
+
+            if not first_event_ready[survivor_slot].wait(5.0):
+                raise TimeoutError("survivor stream event exceeded its bounded wait")
+            release_stream[survivor_slot].set()
+
+            for worker in workers:
+                worker.join(timeout=10.0)
+                if worker.is_alive():
+                    raise RuntimeError("stream worker did not stop")
+            if worker_errors:
+                names = sorted({type(error).__name__ for error in worker_errors})
+                raise RuntimeError(f"stream workers failed: {names}")
+
+            started = time.monotonic()
+            while time.monotonic() - started < 15.0:
+                values = self.slots()
+                if all(_slot_view_from_values(values, slot)["idle"] for slot in (0, 1)):
+                    both_idle_after_second_disconnect = True
+                    break
+                time.sleep(0.01)
+        finally:
+            for gate in release_stream:
+                gate.set()
+            for worker in workers:
+                worker.join(timeout=10.0)
+            with state_lock:
+                open_responses = list(responses)
+                open_connections = list(connections)
+            for response in open_responses:
+                if response is not None:
+                    response.close()
+            for connection in open_connections:
+                if connection is not None:
+                    connection.close()
+        return {
+            "both_idle_after_second_disconnect": (both_idle_after_second_disconnect),
+            "both_first_events_before_disconnect": (
+                both_first_events_before_disconnect
+            ),
+            "both_processing_observed": both_processing_observed,
+            "cancelled_slot_idle_after_first_disconnect": cancelled_slot_idle,
+            "slot_0_first_event_nonterminal": _stream_event_is_nonterminal(
+                first_events[0]
+            ),
+            "slot_0_first_event_observed": bool(first_events[0]),
+            "slot_1_first_event_nonterminal": _stream_event_is_nonterminal(
+                first_events[1]
+            ),
+            "slot_1_first_event_observed": bool(first_events[1]),
+            "survivor_active_after_first_disconnect": (
+                survivor_active_after_first_disconnect
+            ),
         }
 
     def save(self, slot_id: int, filename: str) -> int:

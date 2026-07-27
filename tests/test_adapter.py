@@ -99,3 +99,20 @@ def test_completion_rejects_empty_default_token_list(
             seed=42,
             temperature=0,
         )
+
+
+def test_dual_stream_requires_registered_disconnect_slot() -> None:
+    client = LlamaCppClient(port=1, api_key="private")
+    with pytest.raises(ValueError, match="registered pair"):
+        client.dual_stream_disconnect(
+            ("first", "second"),
+            cache_prompt=True,
+            ignore_eos=True,
+            n_predict=100_000,
+            n_probs=512,
+            receive_buffer_bytes=1_024,
+            active_observation_wait_ms=5_000,
+            first_disconnect_slot=2,
+            seed=42,
+            temperature=0,
+        )

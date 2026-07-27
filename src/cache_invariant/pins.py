@@ -4,17 +4,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-PACKAGE_VERSION = "0.1.0"
+PACKAGE_VERSION = "0.2.0"
 RUNTIME_RELEASE = "b10107"
 RUNTIME_SOURCE_COMMIT = "c0bc8591e8815c63cb01dd3f051a8b0df02501c9"
 RUNTIME_VERSION_LINE = "version: 10107 (c0bc8591e)"
 FIXTURE_SOURCE_REVISION = "0bd21da7698eaf29a0d7de3992de8a46ef624add"
 RUNTIME_LOCK_SCHEMA = "cache-invariant-runtime-lock-v1"
-EVIDENCE_SCHEMA = "cache-invariant-evidence-v1"
+EVIDENCE_SCHEMA = "cache-invariant-evidence-v2"
+EVIDENCE_SCHEMA_V1 = "cache-invariant-evidence-v1"
 MANIFEST_SCHEMA = "cache-invariant-manifest-v1"
 GGUF_SHA256 = "da5a97120b643453a8bf0482999ee087d1bd11e75c6cc5a3dc71d2ee3c89c92d"
 GGUF_BYTES = 1_185_504
-RUNTIME_CONTEXT_TOTAL = 256
+RUNTIME_CONTEXT_TOTAL = 4_096
+RUNTIME_CONTEXT_TOTAL_V1 = 256
 RUNTIME_SLOT_COUNT = 2
 
 

@@ -34,6 +34,54 @@ def test_reuse_hash_mismatch_fails(valid_evidence: dict) -> None:
     assert not all_invariants(value)["cancel_reuse_result_matches_clean_slot"]
 
 
+def test_interleaving_requires_both_first_events_before_disconnect(
+    valid_evidence: dict,
+) -> None:
+    value = copy.deepcopy(valid_evidence)
+    value["interleaving_isolation"]["slot_0_cancelled_first"][
+        "both_first_events_before_disconnect"
+    ] = False
+    assert not all_invariants(value)[
+        "interleave_slot_0_cancelled_first_both_first_events_before_disconnect"
+    ]
+
+
+def test_processing_samples_are_non_gating_observations(
+    valid_evidence: dict,
+) -> None:
+    value = copy.deepcopy(valid_evidence)
+    for name in ("slot_0_cancelled_first", "slot_1_cancelled_first"):
+        value["interleaving_isolation"][name]["both_processing_observed"] = False
+        value["interleaving_isolation"][name][
+            "survivor_active_after_first_disconnect"
+        ] = False
+    assert all(all_invariants(value).values())
+
+
+def test_interleaving_reuse_hash_must_match_isolated_baseline(
+    valid_evidence: dict,
+) -> None:
+    value = copy.deepcopy(valid_evidence)
+    value["interleaving_isolation"]["slot_1_cancelled_first"]["reuses"]["slot_0"][
+        "completion"
+    ]["tokens_sha256"] = "0" * 64
+    assert not all_invariants(value)[
+        "interleave_slot_1_cancelled_first_slot_0_reuse_matches_baseline"
+    ]
+
+
+def test_interleaving_cancelled_slot_must_return_idle(
+    valid_evidence: dict,
+) -> None:
+    value = copy.deepcopy(valid_evidence)
+    value["interleaving_isolation"]["slot_0_cancelled_first"][
+        "cancelled_slot_idle_after_first_disconnect"
+    ] = False
+    assert not all_invariants(value)[
+        "interleave_slot_0_cancelled_first_cancelled_slot_idle_after_first_disconnect"
+    ]
+
+
 def test_restart_restore_must_strictly_reduce_work(valid_evidence: dict) -> None:
     value = copy.deepcopy(valid_evidence)
     value["save_restore"]["after_restart"]["restored"]["completion"]["prompt_work"] = 11

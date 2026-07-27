@@ -11,6 +11,10 @@ It asks bounded questions:
   matched cache-off pair does not?
 - After a streaming client disconnects, does the selected slot return to idle,
   accept a new request, and match a clean-slot result?
+- When two registered streams are launched behind one start barrier, do both
+  produce a nonterminal event before either client disconnects, does the first
+  cancelled slot return to idle, and can both slots then be reused without
+  changing their fixed results?
 - Can slot state be saved, restored into another slot, and reused?
 - Does saved state remain restorable after the server process is stopped and
   started again?
@@ -49,7 +53,8 @@ hash is an output-integrity gate rather than a claim that the complete Python
 environment is byte-reproducible.
 
 `run` binds the server to a dynamically selected loopback port, forces CPU and
-offline mode, enables exactly two slots, and suppresses raw server logs. The
+offline mode, enables exactly two slots with a total 4,096-token context, and
+suppresses raw server logs. The
 evidence contains only normalized hashes, bounded counters, booleans, and
 registered version identifiers. It excludes:
 
@@ -67,10 +72,11 @@ lowercase 40-hex revision being exercised.
 
 ## Current evidence status
 
-The bundled Windows [reference evidence](evidence/README.md) records 29
-registered invariants and binds them to the exact source revision exercised.
-It is one local observation, not independent reproduction, external adoption,
-production use, or a cross-platform reference result. The workflow in
+The bundled Windows [reference evidence](evidence/README.md) preserves the
+29-invariant v0.1 observation and records the current 57-invariant v0.2
+observation, each bound to the exact source revision exercised. They are local
+observations, not independent reproduction, external adoption, production use,
+or cross-platform reference results. The workflow in
 `.github/workflows/ci.yml` separately exercises Windows and Ubuntu on free
 GitHub Actions without uploading generated evidence.
 

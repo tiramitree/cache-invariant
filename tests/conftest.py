@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from typing import Any
 
 import pytest
@@ -79,6 +80,53 @@ def valid_evidence() -> dict[str, Any]:
             predicted_tokens=16,
         ),
     }
+    slot_0_hash = "2" * 64
+    slot_0_tokens = "3" * 64
+    slot_1_hash = "4" * 64
+    slot_1_tokens = "5" * 64
+    slot_0_case = completion_case(
+        content_hash=slot_0_hash,
+        token_hash=slot_0_tokens,
+        prompt_work=8,
+        predicted_tokens=16,
+    )
+    slot_1_case = completion_case(
+        content_hash=slot_1_hash,
+        token_hash=slot_1_tokens,
+        prompt_work=9,
+        predicted_tokens=16,
+    )
+    common_direction = {
+        "both_idle_after_second_disconnect": True,
+        "both_first_events_before_disconnect": True,
+        "both_processing_observed": True,
+        "cancelled_slot_idle_after_first_disconnect": True,
+        "slot_0_first_event_nonterminal": True,
+        "slot_0_first_event_observed": True,
+        "slot_1_first_event_nonterminal": True,
+        "slot_1_first_event_observed": True,
+        "survivor_active_after_first_disconnect": False,
+    }
+    interleaving_isolation = {
+        "baselines": {
+            "slot_0": copy.deepcopy(slot_0_case),
+            "slot_1": copy.deepcopy(slot_1_case),
+        },
+        "slot_0_cancelled_first": {
+            **common_direction,
+            "reuses": {
+                "slot_0": copy.deepcopy(slot_0_case),
+                "slot_1": copy.deepcopy(slot_1_case),
+            },
+        },
+        "slot_1_cancelled_first": {
+            **common_direction,
+            "reuses": {
+                "slot_0": copy.deepcopy(slot_0_case),
+                "slot_1": copy.deepcopy(slot_1_case),
+            },
+        },
+    }
     restore_hash = "e" * 64
     restore_tokens = "f" * 64
     state = {"bytes": 11_960, "sha256": "1" * 64}
@@ -113,6 +161,7 @@ def valid_evidence() -> dict[str, Any]:
         platform_key="windows-x86_64",
         cache_pairing=cache_pairing,
         cancellation_reuse=cancellation_reuse,
+        interleaving_isolation=interleaving_isolation,
         save_restore=save_restore,
         source_revision="UNCOMMITTED",
     )

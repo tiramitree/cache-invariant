@@ -30,6 +30,7 @@ FORBIDDEN_SUFFIXES = (
 )
 SDIST_REPRODUCIBILITY_FILES = {
     ".github/workflows/ci.yml",
+    "CHANGELOG.md",
     "CONTRIBUTING.md",
     "SECURITY.md",
     "docs/ARCHITECTURE.md",

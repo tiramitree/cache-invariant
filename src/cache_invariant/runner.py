@@ -29,6 +29,8 @@ from .registration import (
     CANCELLATION_BASELINE,
     CANCELLATION_REUSE,
     CANCELLATION_STREAM,
+    INTERLEAVING_BASELINES,
+    INTERLEAVING_STREAMS,
     PROCESS_ORDER,
     RETURN_TOKENS,
     SAVE_AFTER_RESTART,
@@ -133,6 +135,83 @@ def _save_restore_same_process(
     }
 
 
+def _erase_registered_slots(
+    client: LlamaCppClient, trace: list[str], prefix: str
+) -> None:
+    client.erase(0)
+    trace.append(f"{prefix}.erase_slot_0")
+    client.erase(1)
+    trace.append(f"{prefix}.erase_slot_1")
+
+
+def _interleaving_direction(
+    client: LlamaCppClient,
+    trace: list[str],
+    *,
+    first_disconnect_slot: int,
+) -> dict[str, Any]:
+    first, second = INTERLEAVING_STREAMS
+    shared_fields = (
+        "cache_prompt",
+        "ignore_eos",
+        "n_predict",
+        "n_probs",
+        "receive_buffer_bytes",
+        "active_observation_wait_ms",
+    )
+    if any(getattr(first, name) != getattr(second, name) for name in shared_fields):
+        raise RuntimeError("registered dual-stream controls differed")
+    result = client.dual_stream_disconnect(
+        (first.prompt, second.prompt),
+        cache_prompt=first.cache_prompt,
+        ignore_eos=first.ignore_eos,
+        n_predict=first.n_predict,
+        n_probs=first.n_probs,
+        receive_buffer_bytes=first.receive_buffer_bytes,
+        active_observation_wait_ms=first.active_observation_wait_ms,
+        first_disconnect_slot=first_disconnect_slot,
+        seed=SEED,
+        temperature=TEMPERATURE,
+    )
+    name = f"slot_{first_disconnect_slot}_cancelled_first"
+    trace.append(f"interleaving_isolation.{name}.dual_stream_disconnect")
+    result["reuses"] = {}
+    for case in INTERLEAVING_BASELINES:
+        result["reuses"][case.name] = _completion_case(client, case)
+        trace.append(f"interleaving_isolation.{name}.{case.name}_reuse")
+    return result
+
+
+def _interleaving_isolation(
+    client: LlamaCppClient,
+    trace: list[str],
+) -> dict[str, Any]:
+    prefix = "interleaving_isolation"
+    _erase_registered_slots(client, trace, prefix)
+    baselines: dict[str, Any] = {}
+    for case in INTERLEAVING_BASELINES:
+        baselines[case.name] = _completion_case(client, case)
+        trace.append(f"{prefix}.baselines.{case.name}")
+
+    _erase_registered_slots(client, trace, prefix)
+    slot_0_first = _interleaving_direction(
+        client,
+        trace,
+        first_disconnect_slot=0,
+    )
+    _erase_registered_slots(client, trace, prefix)
+    slot_1_first = _interleaving_direction(
+        client,
+        trace,
+        first_disconnect_slot=1,
+    )
+    return {
+        "baselines": baselines,
+        "slot_0_cancelled_first": slot_0_first,
+        "slot_1_cancelled_first": slot_1_first,
+    }
+
+
 def _restore_after_restart(
     client: LlamaCppClient,
     trace: list[str],
@@ -154,6 +233,7 @@ def build_evidence(
     platform_key: str,
     cache_pairing: dict[str, Any],
     cancellation_reuse: dict[str, Any],
+    interleaving_isolation: dict[str, Any],
     save_restore: dict[str, Any],
     source_revision: str,
 ) -> dict[str, Any]:
@@ -176,6 +256,7 @@ def build_evidence(
             "source_revision": FIXTURE_SOURCE_REVISION,
             "tokenizer_sha256": TOKENIZER.sha256,
         },
+        "interleaving_isolation": interleaving_isolation,
         "producer": {
             "name": "cache-invariant",
             "version": PACKAGE_VERSION,
@@ -242,6 +323,7 @@ def run_scenarios(lock_path: Path, *, source_revision: str) -> dict[str, Any]:
             trace.append("start_server_1")
             cache_pairing = _cache_pairing(client, trace)
             cancellation_reuse = _cancellation_reuse(client, trace)
+            interleaving_isolation = _interleaving_isolation(client, trace)
             save_restore = _save_restore_same_process(client, trace)
         trace.append("stop_server_1")
         # ServerProcess.stop has verified termination, including the captured
@@ -280,6 +362,7 @@ def run_scenarios(lock_path: Path, *, source_revision: str) -> dict[str, Any]:
             platform_key=platform_key,
             cache_pairing=cache_pairing,
             cancellation_reuse=cancellation_reuse,
+            interleaving_isolation=interleaving_isolation,
             save_restore=save_restore,
             source_revision=source_revision,
         )

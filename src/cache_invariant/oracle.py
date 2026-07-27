@@ -131,11 +131,88 @@ def save_restore_invariants(value: dict[str, Any]) -> dict[str, bool]:
     }
 
 
+def interleaving_invariants(value: dict[str, Any]) -> dict[str, bool]:
+    baselines = value["baselines"]
+    result: dict[str, bool] = {
+        "interleave_baselines_idle": all(
+            _slot(case)["idle"] for case in baselines.values()
+        ),
+        "interleave_baseline_prompt_work_views_consistent": all(
+            _completion(case)["prompt_work"] == _slot(case)["prompt_work"]
+            for case in baselines.values()
+        ),
+    }
+    for first_slot in (0, 1):
+        name = f"slot_{first_slot}_cancelled_first"
+        direction = value[name]
+        reuses = direction["reuses"]
+        prefix = f"interleave_{name}"
+        result.update(
+            {
+                f"{prefix}_both_first_events_before_disconnect": direction[
+                    "both_first_events_before_disconnect"
+                ],
+                f"{prefix}_cancelled_slot_idle_after_first_disconnect": direction[
+                    "cancelled_slot_idle_after_first_disconnect"
+                ],
+                f"{prefix}_both_idle_after_second_disconnect": direction[
+                    "both_idle_after_second_disconnect"
+                ],
+                f"{prefix}_slot_0_first_event_observed": direction[
+                    "slot_0_first_event_observed"
+                ],
+                f"{prefix}_slot_0_first_event_nonterminal": direction[
+                    "slot_0_first_event_nonterminal"
+                ],
+                f"{prefix}_slot_1_first_event_observed": direction[
+                    "slot_1_first_event_observed"
+                ],
+                f"{prefix}_slot_1_first_event_nonterminal": direction[
+                    "slot_1_first_event_nonterminal"
+                ],
+                f"{prefix}_result_views_consistent": all(
+                    _completion(case)["prompt_work"] == _slot(case)["prompt_work"]
+                    for case in reuses.values()
+                ),
+                f"{prefix}_result_slots_idle": all(
+                    _slot(case)["idle"] for case in reuses.values()
+                ),
+            }
+        )
+        for slot in (0, 1):
+            baseline = baselines[f"slot_{slot}"]
+            reuse = reuses[f"slot_{slot}"]
+            result[f"{prefix}_slot_{slot}_reuse_matches_baseline"] = _same_result(
+                _completion(baseline),
+                _completion(reuse),
+            )
+            result[f"{prefix}_slot_{slot}_prompt_work_matches_baseline"] = (
+                _completion(baseline)["prompt_work"]
+                == _completion(reuse)["prompt_work"]
+            )
+    return result
+
+
+def all_invariants_v1(evidence: dict[str, Any]) -> dict[str, bool]:
+    result: dict[str, bool] = {}
+    for values in (
+        cache_pairing_invariants(evidence["cache_pairing"]),
+        cancellation_invariants(evidence["cancellation_reuse"]),
+        save_restore_invariants(evidence["save_restore"]),
+    ):
+        overlap = set(result) & set(values)
+        if overlap:
+            raise ValueError(f"duplicate invariant names: {sorted(overlap)}")
+        result.update(values)
+    return result
+
+
 def all_invariants(evidence: dict[str, Any]) -> dict[str, bool]:
     result: dict[str, bool] = {}
     for values in (
         cache_pairing_invariants(evidence["cache_pairing"]),
         cancellation_invariants(evidence["cancellation_reuse"]),
+        interleaving_invariants(evidence["interleaving_isolation"]),
         save_restore_invariants(evidence["save_restore"]),
     ):
         overlap = set(result) & set(values)

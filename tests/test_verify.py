@@ -34,6 +34,16 @@ def test_round_trip_bundle(
     }
 
 
+def test_bundled_v0_1_evidence_remains_offline_verifiable() -> None:
+    root = Path(__file__).resolve().parents[1]
+    summary = verify_bundle(root / "evidence" / "reference-v0.1.0-windows")
+    assert summary == {
+        "invariant_count": 29,
+        "platform": "windows-x86_64",
+        "schema": "cache-invariant-evidence-v1",
+    }
+
+
 def test_bundle_symlink_is_rejected(
     tmp_path: Path,
     valid_evidence: dict,
@@ -145,6 +155,26 @@ def test_nested_raw_prompt_field_is_rejected(valid_evidence: dict) -> None:
 def test_nested_path_field_is_rejected(valid_evidence: dict) -> None:
     value = copy.deepcopy(valid_evidence)
     value["save_restore"]["slot_state_before_restart"]["path"] = "x"
+    with pytest.raises(ValueError, match="keys differ"):
+        validate_evidence(value)
+
+
+def test_interleaving_boolean_tamper_fails_closed(valid_evidence: dict) -> None:
+    value = copy.deepcopy(valid_evidence)
+    value["interleaving_isolation"]["slot_1_cancelled_first"][
+        "both_idle_after_second_disconnect"
+    ] = False
+    value["invariants"] = __import__(
+        "cache_invariant.oracle",
+        fromlist=["all_invariants"],
+    ).all_invariants(value)
+    with pytest.raises(ValueError, match="runtime invariants failed"):
+        validate_evidence(value)
+
+
+def test_interleaving_unknown_field_is_rejected(valid_evidence: dict) -> None:
+    value = copy.deepcopy(valid_evidence)
+    value["interleaving_isolation"]["slot_0_cancelled_first"]["elapsed_ms"] = 12
     with pytest.raises(ValueError, match="keys differ"):
         validate_evidence(value)
 

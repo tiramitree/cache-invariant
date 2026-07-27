@@ -10,6 +10,10 @@ the operating system named by the registered asset:
 - a selected slot was observed active, returned idle after a client
   disconnect, and produced the same normalized result as a clean slot when
   reused;
+- in each of two registered launch/disconnect orders, two streams each
+  produced a nonterminal event before either client disconnected, the first
+  cancelled slot returned to idle, both slots later returned idle, and both
+  reused results matched their isolated baselines;
 - saved slot state restored into another slot with strictly less prompt work;
 - after a full server process restart, the same saved state restored with
   strictly less prompt work than the source completion; and
@@ -26,6 +30,9 @@ ephemerally without publishing their bundles.
 - model quality, semantic correctness, safety, or useful generated text;
 - absolute latency, throughput, cost, memory efficiency, or competitive rank;
 - production readiness, security certification, or complete state isolation;
+- scheduling fairness, simultaneous token generation, head-of-line-blocking
+  absence, or a guarantee that the surviving slot remains active after the
+  first disconnect;
 - GPU, accelerator, distributed, hosted, or multi-tenant behavior;
 - behavior of another `llama.cpp` version, model, request schedule, or runtime;
 - vLLM, SGLang, MLPerf, or cross-runtime equivalence;
@@ -33,3 +40,7 @@ ephemerally without publishing their bundles.
 
 An output hash match is evidence about the fixed test result only. It does not
 prove that no unobserved internal state exists.
+
+The dual-stream record retains `both_processing_observed` and
+`survivor_active_after_first_disconnect` as non-gating observations. They are
+not used to claim concurrent processing or survivor liveness.
