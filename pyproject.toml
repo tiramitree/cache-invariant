@@ -1,0 +1,72 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cache-invariant"
+version = "0.1.0"
+description = "Version-pinned inference cache correctness and slot-isolation lab"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0 AND MIT"
+license-files = ["LICENSE", "third_party/llama.cpp-LICENSE.txt"]
+authors = [{ name = "tiramitree" }]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "License :: OSI Approved :: Apache Software License",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+dependencies = []
+
+[project.optional-dependencies]
+convert = [
+  "gguf==0.19.0",
+  "numpy==2.4.4",
+  "PyYAML==6.0.2",
+]
+dev = [
+  "build==1.3.0",
+  "pytest==8.4.2",
+  "ruff==0.12.12",
+]
+
+[project.scripts]
+cache-invariant = "cache_invariant.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cache_invariant"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"NOTICE" = "cache_invariant/notices/NOTICE"
+"THIRD_PARTY_NOTICES.md" = "cache_invariant/notices/THIRD_PARTY_NOTICES.md"
+
+[tool.hatch.build]
+include = [
+  ".github/workflows/ci.yml",
+  "CONTRIBUTING.md",
+  "src/cache_invariant/**/*.py",
+  "tests/**/*.py",
+  "tools/**/*.py",
+  "docs/**/*.md",
+  "README.md",
+  "SECURITY.md",
+  "LICENSE",
+  "NOTICE",
+  "THIRD_PARTY_NOTICES.md",
+  "third_party/llama.cpp-LICENSE.txt",
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "RUF", "UP"]

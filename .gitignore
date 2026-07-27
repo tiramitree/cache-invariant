@@ -1,0 +1,17 @@
+.cache/
+.coverage
+.pytest_cache/
+.ruff_cache/
+.venv/
+__pycache__/
+build/
+dist/
+*.egg-info/
+*.gguf
+*.bin
+*.dll
+*.exe
+*.so
+*.tar.gz
+*.zip
+candidate-evidence/

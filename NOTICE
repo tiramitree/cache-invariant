@@ -1,0 +1,8 @@
+CacheInvariant
+Copyright 2026 tiramitree
+
+The original CacheInvariant code is licensed under Apache-2.0.
+
+The file src/cache_invariant/_vendor/llama2c_gguf.py is separately licensed
+under MIT and carries its own SPDX identifier and attribution. See
+THIRD_PARTY_NOTICES.md and third_party/llama.cpp-LICENSE.txt.
