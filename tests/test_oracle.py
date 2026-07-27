@@ -95,3 +95,44 @@ def test_slot_file_change_across_restart_fails(valid_evidence: dict) -> None:
     value = copy.deepcopy(valid_evidence)
     value["save_restore"]["slot_state_after_restart"]["sha256"] = "2" * 64
     assert not all_invariants(value)["slot_state_file_unchanged_across_restart"]
+
+
+def test_exact_prefix_requires_last_token_reevaluation(valid_evidence: dict) -> None:
+    value = copy.deepcopy(valid_evidence)
+    value["token_prefix_divergence"]["exact"]["cache_on_target"]["prefill"][
+        "cache_tokens"
+    ] = 4
+    assert not all_invariants(value)["prefix_exact_cache_on_cache_matches_lcp_rule"]
+
+
+def test_shared_prefix_requires_registered_prompt_work(valid_evidence: dict) -> None:
+    value = copy.deepcopy(valid_evidence)
+    value["token_prefix_divergence"]["shared_prefix"]["cache_on_target"]["prefill"][
+        "prompt_work"
+    ] = 3
+    assert not all_invariants(value)[
+        "prefix_shared_prefix_cache_on_work_matches_lcp_rule"
+    ]
+
+
+def test_first_token_divergence_forbids_reuse(valid_evidence: dict) -> None:
+    value = copy.deepcopy(valid_evidence)
+    case = value["token_prefix_divergence"]["first_token_divergence"]["cache_on_target"]
+    case["prefill"]["cache_tokens"] = 1
+    case["prefill"]["prompt_work"] = 2
+    case["idle_slot"]["prompt_work"] = 2
+    invariants = all_invariants(value)
+    assert not invariants[
+        "prefix_first_token_divergence_cache_on_cache_matches_lcp_rule"
+    ]
+    assert not invariants[
+        "prefix_first_token_divergence_work_relation_matches_divergence"
+    ]
+
+
+def test_prefill_records_actual_predicted_count(valid_evidence: dict) -> None:
+    value = copy.deepcopy(valid_evidence)
+    value["token_prefix_divergence"]["exact"]["source"]["prefill"][
+        "predicted_tokens"
+    ] = 0
+    assert not all_invariants(value)["prefix_predicted_tokens_are_one"]

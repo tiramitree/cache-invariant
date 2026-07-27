@@ -30,6 +30,14 @@ two empty slots
   -> reuse both slots and compare each result with its isolated baseline
   -> repeat with the opposite launch and disconnect order
 
+empty slot, repeated for each registered direct-token row
+  -> erase slot 0
+  -> cache-on source prefill
+  -> cache-on exact/shared/diverged target prefill
+  -> erase slot 0
+  -> matched cache-off target prefill
+  -> compare response cache/work counters with the registered LCP rule
+
 empty slot
   -> cached source completion
   -> save slot state
@@ -42,9 +50,18 @@ empty slot
 ```
 
 The oracle compares matched requests at fixed prompt, seed, temperature, and
-prediction count. Cache effectiveness uses `timings.prompt_n` and the idle slot
-view's `n_prompt_tokens_processed`; the response field `tokens_cached` is
-recorded but is not a pass/fail signal in `b10107`.
+prediction count. The original completion lanes use `timings.prompt_n` and the
+idle slot view's `n_prompt_tokens_processed`; the response field
+`tokens_cached` is recorded but is not a pass/fail signal in `b10107`.
+
+The schema-v3 direct-token lane instead records response
+`timings.cache_n`, `timings.prompt_n`, `timings.predicted_n`, and top-level
+`tokens_evaluated`, plus the idle slot's prompt-work count. It disables the
+optional KV-shifting chunk-reuse path with `n_cache_reuse=0`. Exact full-prefix reuse
+expects the pinned runtime to reevaluate the final prompt token; a strict
+shared prefix reuses its full LCP, while first-token divergence reuses none.
+Post-response slot state is used only for idle and prompt-work checks because
+slot reset clears the response's per-request cache counter.
 
 ## Components
 
@@ -80,6 +97,11 @@ a pass condition because the bounded sampler did not observe it in every local
 repetition. Probabilities, generated content, and elapsed-time data are not
 retained.
 
+Direct-token requests use integer token arrays and explicitly set
+`n_predict=1`. The reported predicted-token count is retained and required to
+equal one, while generated content and generated token values are discarded
+without hashing or comparison. The lane therefore makes no output-free claim.
+
 The evidence verifier performs no network access and starts no process. It
 accepts exactly three regular files and rejects symlinks, unknown schema keys,
 unregistered pins or request registration, invalid source revisions, failed
@@ -87,17 +109,20 @@ invariants, malformed JUnit, hash mismatches, and extra files.
 
 ## Normalization
 
-Generated text is reduced to a SHA-256 and UTF-8 byte count. Token lists are
-reduced to the SHA-256 of canonical JSON. Stream-only probability fields used
-to create cancellation backpressure are discarded. The timing-sensitive cancellation
-observation is reduced to two booleans: active processing was observed, and
-the same slot later returned to idle. Prompt-work token counts that define the
-cache and restore oracle remain as bounded integers.
+Generated text in the original completion lanes is reduced to a SHA-256 and
+UTF-8 byte count. Their token lists are reduced to the SHA-256 of canonical
+JSON. Direct-token prefill output is discarded entirely; only bounded
+prompt/cache/prediction counts remain. Stream-only probability fields used to
+create cancellation backpressure are discarded. The timing-sensitive
+cancellation observation is reduced to two booleans: active processing was
+observed, and the same slot later returned to idle. Prompt-work token counts
+that define the cache and restore oracle remain as bounded integers.
 
-Raw prompts are absent from evidence. Their UTF-8 byte counts and SHA-256
-identities, together with fixed seed, temperature, prediction count, cache and
-stream flags, selected slots, state-filename identity, and process order form
-the exact public registration. `source_revision` is either `UNCOMMITTED` for a
-local candidate or a lowercase 40-hex revision supplied by CI.
+Raw prompts and direct-token arrays are absent from evidence. String-prompt
+UTF-8 byte counts and SHA-256 identities, direct-token counts and canonical
+JSON SHA-256 identities, fixed request controls, selected slots,
+state-filename identity, LCP lengths, and process order form the exact public
+registration. `source_revision` is either `UNCOMMITTED` for a local candidate
+or a lowercase 40-hex revision supplied by CI.
 
 No inference speed measurement is retained.

@@ -101,6 +101,81 @@ def test_completion_rejects_empty_default_token_list(
         )
 
 
+def test_direct_token_prefill_discards_generated_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = LlamaCppClient(port=1, api_key="private")
+    captured: dict[str, Any] = {}
+
+    def request(
+        _self: LlamaCppClient,
+        _method: str,
+        _path: str,
+        body: dict[str, Any],
+        **_kwargs: Any,
+    ) -> dict[str, Any]:
+        captured.update(body)
+        return {
+            "content": "discarded generated output",
+            "tokens": [511],
+            "tokens_evaluated": 4,
+            "tokens_predicted": 1,
+            "timings": {
+                "cache_n": 3,
+                "predicted_n": 1,
+                "prompt_n": 1,
+            },
+        }
+
+    monkeypatch.setattr(LlamaCppClient, "request_json", request)
+    value = client.direct_token_prefill(
+        0,
+        (403, 407, 261, 378),
+        cache_prompt=True,
+        n_cache_reuse=0,
+        n_predict=1,
+        seed=42,
+        temperature=0,
+    )
+    assert captured["prompt"] == [403, 407, 261, 378]
+    assert captured["n_cache_reuse"] == 0
+    assert captured["n_predict"] == 1
+    assert captured["return_tokens"] is False
+    assert value == {
+        "cache_tokens": 3,
+        "predicted_tokens": 1,
+        "prompt_tokens": 4,
+        "prompt_work": 1,
+    }
+    assert "content" not in value
+    assert "tokens" not in value
+
+
+def test_direct_token_prefill_requires_counter_fields(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = LlamaCppClient(port=1, api_key="private")
+    monkeypatch.setattr(
+        LlamaCppClient,
+        "request_json",
+        lambda *_args, **_kwargs: {
+            "content": "discarded",
+            "tokens_evaluated": 4,
+            "timings": {"predicted_n": 1, "prompt_n": 1},
+        },
+    )
+    with pytest.raises(ValueError, match="cache count"):
+        client.direct_token_prefill(
+            0,
+            (403, 407, 261, 378),
+            cache_prompt=True,
+            n_cache_reuse=0,
+            n_predict=1,
+            seed=42,
+            temperature=0,
+        )
+
+
 def test_dual_stream_requires_registered_disconnect_slot() -> None:
     client = LlamaCppClient(port=1, api_key="private")
     with pytest.raises(ValueError, match="registered pair"):

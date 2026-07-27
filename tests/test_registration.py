@@ -9,9 +9,10 @@ from cache_invariant.registration import (
     INTERLEAVING_STREAM_PROMPT,
     PROCESS_ORDER,
     SAVE_RESTORE_PROMPT,
+    TOKEN_PREFIX_CASES,
     registered_scenarios,
 )
-from cache_invariant.util import canonical_json
+from cache_invariant.util import canonical_json, sha256_bytes
 
 
 def test_registration_excludes_raw_prompt_text() -> None:
@@ -26,6 +27,45 @@ def test_registration_excludes_raw_prompt_text() -> None:
         SAVE_RESTORE_PROMPT,
     ):
         assert prompt.encode("utf-8") not in raw
+
+
+def test_direct_token_registration_excludes_raw_token_arrays() -> None:
+    raw = canonical_json(registered_scenarios())
+    for case in TOKEN_PREFIX_CASES:
+        for spec in (case.source, case.cache_on_target, case.cache_off_target):
+            assert canonical_json(spec.prompt) not in raw
+
+
+def test_direct_token_registration_is_exact() -> None:
+    registered = registered_scenarios()["token_prefix_divergence"]
+    for case in TOKEN_PREFIX_CASES:
+        observed_prefix = 0
+        for source_token, target_token in zip(
+            case.source.prompt,
+            case.cache_on_target.prompt,
+            strict=False,
+        ):
+            if source_token != target_token:
+                break
+            observed_prefix += 1
+        assert observed_prefix == case.common_prefix_tokens
+        assert case.cache_on_target.prompt == case.cache_off_target.prompt
+        value = registered[case.name]
+        assert value["common_prefix_tokens"] == case.common_prefix_tokens
+        for key, spec in (
+            ("source", case.source),
+            ("cache_on_target", case.cache_on_target),
+            ("cache_off_target", case.cache_off_target),
+        ):
+            request = value[key]
+            assert request["cache_prompt"] is spec.cache_prompt
+            assert request["n_cache_reuse"] == 0
+            assert request["n_predict"] == 1
+            assert request["return_tokens"] is False
+            assert request["prompt"] == {
+                "sha256": sha256_bytes(canonical_json(spec.prompt)),
+                "tokens": len(spec.prompt),
+            }
 
 
 def test_cancellation_backpressure_parameters_are_registered() -> None:

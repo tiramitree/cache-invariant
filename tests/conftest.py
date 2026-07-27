@@ -32,6 +32,26 @@ def completion_case(
     }
 
 
+def prefill_case(
+    *,
+    cache_tokens: int,
+    prompt_tokens: int,
+    prompt_work: int,
+) -> dict[str, Any]:
+    return {
+        "idle_slot": {
+            "idle": True,
+            "prompt_work": prompt_work,
+        },
+        "prefill": {
+            "cache_tokens": cache_tokens,
+            "predicted_tokens": 1,
+            "prompt_tokens": prompt_tokens,
+            "prompt_work": prompt_work,
+        },
+    }
+
+
 @pytest.fixture
 def valid_evidence() -> dict[str, Any]:
     cache_hash = "a" * 64
@@ -157,6 +177,59 @@ def valid_evidence() -> dict[str, Any]:
             prompt_work=11,
         ),
     }
+    token_prefix_divergence = {
+        "exact": {
+            "cache_off_target": prefill_case(
+                cache_tokens=0,
+                prompt_tokens=4,
+                prompt_work=4,
+            ),
+            "cache_on_target": prefill_case(
+                cache_tokens=3,
+                prompt_tokens=4,
+                prompt_work=1,
+            ),
+            "source": prefill_case(
+                cache_tokens=0,
+                prompt_tokens=4,
+                prompt_work=4,
+            ),
+        },
+        "first_token_divergence": {
+            "cache_off_target": prefill_case(
+                cache_tokens=0,
+                prompt_tokens=3,
+                prompt_work=3,
+            ),
+            "cache_on_target": prefill_case(
+                cache_tokens=0,
+                prompt_tokens=3,
+                prompt_work=3,
+            ),
+            "source": prefill_case(
+                cache_tokens=0,
+                prompt_tokens=4,
+                prompt_work=4,
+            ),
+        },
+        "shared_prefix": {
+            "cache_off_target": prefill_case(
+                cache_tokens=0,
+                prompt_tokens=5,
+                prompt_work=5,
+            ),
+            "cache_on_target": prefill_case(
+                cache_tokens=3,
+                prompt_tokens=5,
+                prompt_work=2,
+            ),
+            "source": prefill_case(
+                cache_tokens=0,
+                prompt_tokens=4,
+                prompt_work=4,
+            ),
+        },
+    }
     return build_evidence(
         platform_key="windows-x86_64",
         cache_pairing=cache_pairing,
@@ -164,4 +237,5 @@ def valid_evidence() -> dict[str, Any]:
         interleaving_isolation=interleaving_isolation,
         save_restore=save_restore,
         source_revision="UNCOMMITTED",
+        token_prefix_divergence=token_prefix_divergence,
     )

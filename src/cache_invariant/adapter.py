@@ -246,6 +246,87 @@ class LlamaCppClient:
             "idle_slot": self.slot_view(slot_id),
         }
 
+    def direct_token_prefill(
+        self,
+        slot_id: int,
+        prompt: tuple[int, ...],
+        *,
+        cache_prompt: bool,
+        n_cache_reuse: int,
+        n_predict: int,
+        seed: int,
+        temperature: int,
+    ) -> dict[str, int]:
+        if not prompt or any(
+            isinstance(token, bool) or not isinstance(token, int) or token < 0
+            for token in prompt
+        ):
+            raise ValueError("direct-token prompt was malformed")
+        value = self.request_json(
+            "POST",
+            "/completion",
+            {
+                "cache_prompt": cache_prompt,
+                "id_slot": slot_id,
+                "n_cache_reuse": n_cache_reuse,
+                "n_predict": n_predict,
+                "prompt": list(prompt),
+                "return_tokens": False,
+                "seed": seed,
+                "stream": False,
+                "temperature": temperature,
+            },
+            timeout=30.0,
+        )
+        if not isinstance(value, dict):
+            raise ValueError("direct-token completion response was not an object")
+        timings = value.get("timings")
+        if not isinstance(timings, dict):
+            raise ValueError("direct-token completion timings were missing")
+        return {
+            "cache_tokens": require_non_negative_int(
+                timings.get("cache_n"),
+                "direct-token cache count",
+            ),
+            "predicted_tokens": require_non_negative_int(
+                timings.get("predicted_n"),
+                "direct-token predicted count",
+            ),
+            "prompt_tokens": require_non_negative_int(
+                value.get("tokens_evaluated"),
+                "direct-token evaluated count",
+            ),
+            "prompt_work": require_non_negative_int(
+                timings.get("prompt_n"),
+                "direct-token prompt-work count",
+            ),
+        }
+
+    def direct_token_prefill_case(
+        self,
+        slot_id: int,
+        prompt: tuple[int, ...],
+        *,
+        cache_prompt: bool,
+        n_cache_reuse: int,
+        n_predict: int,
+        seed: int,
+        temperature: int,
+    ) -> dict[str, Any]:
+        prefill = self.direct_token_prefill(
+            slot_id,
+            prompt,
+            cache_prompt=cache_prompt,
+            n_cache_reuse=n_cache_reuse,
+            n_predict=n_predict,
+            seed=seed,
+            temperature=temperature,
+        )
+        return {
+            "idle_slot": self.slot_view(slot_id),
+            "prefill": prefill,
+        }
+
     def _open_registered_stream(
         self,
         slot_id: int,

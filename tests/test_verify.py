@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from cache_invariant.evidence import write_bundle
+from cache_invariant.oracle import all_invariants
 from cache_invariant.util import pretty_json
 from cache_invariant.verify import validate_evidence, verify_bundle
 
@@ -52,6 +53,15 @@ def test_bundled_v0_2_evidence_is_offline_verifiable() -> None:
         "platform": "windows-x86_64",
         "schema": "cache-invariant-evidence-v2",
     }
+
+
+def test_schema_v2_evidence_mislabeled_as_v3_is_rejected() -> None:
+    root = Path(__file__).resolve().parents[1]
+    path = root / "evidence" / "reference-v0.2.0-windows" / "evidence.json"
+    value = json.loads(path.read_text(encoding="utf-8"))
+    value["schema"] = "cache-invariant-evidence-v3"
+    with pytest.raises(ValueError, match="keys differ"):
+        validate_evidence(value)
 
 
 def test_bundle_symlink_is_rejected(
@@ -186,6 +196,29 @@ def test_interleaving_unknown_field_is_rejected(valid_evidence: dict) -> None:
     value = copy.deepcopy(valid_evidence)
     value["interleaving_isolation"]["slot_0_cancelled_first"]["elapsed_ms"] = 12
     with pytest.raises(ValueError, match="keys differ"):
+        validate_evidence(value)
+
+
+@pytest.mark.parametrize("field", ["content", "tokens", "elapsed_ms"])
+def test_token_prefix_generated_or_unknown_field_is_rejected(
+    valid_evidence: dict,
+    field: str,
+) -> None:
+    value = copy.deepcopy(valid_evidence)
+    value["token_prefix_divergence"]["exact"]["cache_on_target"]["prefill"][field] = (
+        "forbidden"
+    )
+    with pytest.raises(ValueError, match="keys differ"):
+        validate_evidence(value)
+
+
+def test_token_prefix_counter_drift_fails_closed(valid_evidence: dict) -> None:
+    value = copy.deepcopy(valid_evidence)
+    value["token_prefix_divergence"]["shared_prefix"]["cache_on_target"]["prefill"][
+        "cache_tokens"
+    ] = 2
+    value["invariants"] = all_invariants(value)
+    with pytest.raises(ValueError, match="runtime invariants failed"):
         validate_evidence(value)
 
 

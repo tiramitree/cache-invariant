@@ -31,6 +31,9 @@ from .registration import (
     CANCELLATION_STREAM,
     INTERLEAVING_BASELINES,
     INTERLEAVING_STREAMS,
+    PREFILL_N_CACHE_REUSE,
+    PREFILL_N_PREDICT,
+    PREFILL_RETURN_TOKENS,
     PROCESS_ORDER,
     RETURN_TOKENS,
     SAVE_AFTER_RESTART,
@@ -39,13 +42,17 @@ from .registration import (
     SEED,
     SLOT_STATE_NAME,
     TEMPERATURE,
+    TOKEN_PREFIX_CASES,
     CompletionSpec,
+    TokenPromptSpec,
     registered_scenarios,
 )
 from .util import require_regular_file, require_source_revision, sha256_file
 
 if not RETURN_TOKENS:
     raise RuntimeError("registered non-streaming completions require token hashes")
+if PREFILL_RETURN_TOKENS:
+    raise RuntimeError("registered direct-token probes must discard generated tokens")
 
 
 def _completion_case(
@@ -212,6 +219,52 @@ def _interleaving_isolation(
     }
 
 
+def _direct_token_prefill_case(
+    client: LlamaCppClient,
+    spec: TokenPromptSpec,
+) -> dict[str, Any]:
+    return client.direct_token_prefill_case(
+        spec.slot,
+        spec.prompt,
+        cache_prompt=spec.cache_prompt,
+        n_cache_reuse=PREFILL_N_CACHE_REUSE,
+        n_predict=PREFILL_N_PREDICT,
+        seed=SEED,
+        temperature=TEMPERATURE,
+    )
+
+
+def _token_prefix_divergence(
+    client: LlamaCppClient,
+    trace: list[str],
+) -> dict[str, Any]:
+    prefix = "token_prefix_divergence"
+    result: dict[str, Any] = {}
+    for case in TOKEN_PREFIX_CASES:
+        client.erase(0)
+        trace.append(f"{prefix}.{case.name}.erase_slot_0")
+        source = _direct_token_prefill_case(client, case.source)
+        trace.append(f"{prefix}.{case.name}.source")
+        cache_on_target = _direct_token_prefill_case(
+            client,
+            case.cache_on_target,
+        )
+        trace.append(f"{prefix}.{case.name}.cache_on_target")
+        client.erase(0)
+        trace.append(f"{prefix}.{case.name}.erase_slot_0")
+        cache_off_target = _direct_token_prefill_case(
+            client,
+            case.cache_off_target,
+        )
+        trace.append(f"{prefix}.{case.name}.cache_off_target")
+        result[case.name] = {
+            "cache_off_target": cache_off_target,
+            "cache_on_target": cache_on_target,
+            "source": source,
+        }
+    return result
+
+
 def _restore_after_restart(
     client: LlamaCppClient,
     trace: list[str],
@@ -236,6 +289,7 @@ def build_evidence(
     interleaving_isolation: dict[str, Any],
     save_restore: dict[str, Any],
     source_revision: str,
+    token_prefix_divergence: dict[str, Any],
 ) -> dict[str, Any]:
     require_source_revision(source_revision, "source revision")
     evidence: dict[str, Any] = {
@@ -278,6 +332,7 @@ def build_evidence(
         "save_restore": save_restore,
         "schema": EVIDENCE_SCHEMA,
         "source_revision": source_revision,
+        "token_prefix_divergence": token_prefix_divergence,
         "transport": {
             "api_key_enabled": True,
             "endpoint": "loopback-redacted",
@@ -324,6 +379,7 @@ def run_scenarios(lock_path: Path, *, source_revision: str) -> dict[str, Any]:
             cache_pairing = _cache_pairing(client, trace)
             cancellation_reuse = _cancellation_reuse(client, trace)
             interleaving_isolation = _interleaving_isolation(client, trace)
+            token_prefix_divergence = _token_prefix_divergence(client, trace)
             save_restore = _save_restore_same_process(client, trace)
         trace.append("stop_server_1")
         # ServerProcess.stop has verified termination, including the captured
@@ -365,6 +421,7 @@ def run_scenarios(lock_path: Path, *, source_revision: str) -> dict[str, Any]:
             interleaving_isolation=interleaving_isolation,
             save_restore=save_restore,
             source_revision=source_revision,
+            token_prefix_divergence=token_prefix_divergence,
         )
         failed = sorted(
             name for name, passed in evidence["invariants"].items() if not passed

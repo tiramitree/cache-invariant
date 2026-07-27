@@ -5,13 +5,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from .util import sha256_bytes
+from .util import canonical_json, sha256_bytes
 
-REGISTRATION_SCHEMA = "cache-invariant-registration-v2"
+REGISTRATION_SCHEMA = "cache-invariant-registration-v3"
+REGISTRATION_SCHEMA_V2 = "cache-invariant-registration-v2"
 REGISTRATION_SCHEMA_V1 = "cache-invariant-registration-v1"
 SEED = 42
 TEMPERATURE = 0
 RETURN_TOKENS = True
+PREFILL_RETURN_TOKENS = False
+PREFILL_N_PREDICT = 1
+PREFILL_N_CACHE_REUSE = 0
 SLOT_STATE_NAME = "cache-invariant-slot-v1.bin"
 
 CACHE_PROMPT = "Once upon a time"
@@ -21,6 +25,10 @@ SAVE_RESTORE_PROMPT = "In a small forest"
 INTERLEAVING_SLOT_0_PROMPT = "A copper fox crossed the silent bridge"
 INTERLEAVING_SLOT_1_PROMPT = "A paper kite climbed above the harbor"
 INTERLEAVING_STREAM_PROMPT = "A registered synthetic stream continues"
+TOKEN_PREFIX_SOURCE = (403, 407, 261, 378)
+TOKEN_PREFIX_EXACT_TARGET = TOKEN_PREFIX_SOURCE
+TOKEN_PREFIX_SHARED_TARGET = (403, 407, 261, 328, 426)
+TOKEN_PREFIX_DIVERGED_TARGET = (385, 328, 426)
 
 
 @dataclass(frozen=True)
@@ -47,6 +55,27 @@ class StreamSpec:
     n_probs: int
     receive_buffer_bytes: int
     active_observation_wait_ms: int
+
+
+@dataclass(frozen=True)
+class TokenPromptSpec:
+    """One registered direct-token prefill request."""
+
+    name: str
+    slot: int
+    prompt: tuple[int, ...]
+    cache_prompt: bool
+
+
+@dataclass(frozen=True)
+class TokenPrefixCase:
+    """One source/target longest-common-prefix case."""
+
+    name: str
+    common_prefix_tokens: int
+    source: TokenPromptSpec
+    cache_on_target: TokenPromptSpec
+    cache_off_target: TokenPromptSpec
 
 
 CACHE_PAIRING_CASES = (
@@ -135,6 +164,29 @@ INTERLEAVING_STREAMS = (
         5_000,
     ),
 )
+TOKEN_PREFIX_CASES = (
+    TokenPrefixCase(
+        "exact",
+        4,
+        TokenPromptSpec("source", 0, TOKEN_PREFIX_SOURCE, True),
+        TokenPromptSpec("cache_on_target", 0, TOKEN_PREFIX_EXACT_TARGET, True),
+        TokenPromptSpec("cache_off_target", 0, TOKEN_PREFIX_EXACT_TARGET, False),
+    ),
+    TokenPrefixCase(
+        "shared_prefix",
+        3,
+        TokenPromptSpec("source", 0, TOKEN_PREFIX_SOURCE, True),
+        TokenPromptSpec("cache_on_target", 0, TOKEN_PREFIX_SHARED_TARGET, True),
+        TokenPromptSpec("cache_off_target", 0, TOKEN_PREFIX_SHARED_TARGET, False),
+    ),
+    TokenPrefixCase(
+        "first_token_divergence",
+        0,
+        TokenPromptSpec("source", 0, TOKEN_PREFIX_SOURCE, True),
+        TokenPromptSpec("cache_on_target", 0, TOKEN_PREFIX_DIVERGED_TARGET, True),
+        TokenPromptSpec("cache_off_target", 0, TOKEN_PREFIX_DIVERGED_TARGET, False),
+    ),
+)
 
 PROCESS_ORDER_V1 = (
     "start_server_1",
@@ -161,8 +213,7 @@ PROCESS_ORDER_V1 = (
     "stop_server_2",
     "hash_slot_state_after_restart",
 )
-PROCESS_ORDER = (
-    *PROCESS_ORDER_V1[:12],
+INTERLEAVING_PROCESS_ORDER = (
     "interleaving_isolation.erase_slot_0",
     "interleaving_isolation.erase_slot_1",
     "interleaving_isolation.baselines.slot_0",
@@ -177,6 +228,27 @@ PROCESS_ORDER = (
     "interleaving_isolation.slot_1_cancelled_first.dual_stream_disconnect",
     "interleaving_isolation.slot_1_cancelled_first.slot_0_reuse",
     "interleaving_isolation.slot_1_cancelled_first.slot_1_reuse",
+)
+PROCESS_ORDER_V2 = (
+    *PROCESS_ORDER_V1[:12],
+    *INTERLEAVING_PROCESS_ORDER,
+    *PROCESS_ORDER_V1[12:],
+)
+TOKEN_PREFIX_PROCESS_ORDER = tuple(
+    step
+    for case in TOKEN_PREFIX_CASES
+    for step in (
+        f"token_prefix_divergence.{case.name}.erase_slot_0",
+        f"token_prefix_divergence.{case.name}.source",
+        f"token_prefix_divergence.{case.name}.cache_on_target",
+        f"token_prefix_divergence.{case.name}.erase_slot_0",
+        f"token_prefix_divergence.{case.name}.cache_off_target",
+    )
+)
+PROCESS_ORDER = (
+    *PROCESS_ORDER_V1[:12],
+    *INTERLEAVING_PROCESS_ORDER,
+    *TOKEN_PREFIX_PROCESS_ORDER,
     *PROCESS_ORDER_V1[12:],
 )
 
@@ -219,6 +291,27 @@ def _stream_registration(spec: StreamSpec) -> dict[str, Any]:
     }
 
 
+def _token_prompt_identity(prompt: tuple[int, ...]) -> dict[str, Any]:
+    return {
+        "sha256": sha256_bytes(canonical_json(prompt)),
+        "tokens": len(prompt),
+    }
+
+
+def _token_prompt_registration(spec: TokenPromptSpec) -> dict[str, Any]:
+    return {
+        "cache_prompt": spec.cache_prompt,
+        "n_cache_reuse": PREFILL_N_CACHE_REUSE,
+        "n_predict": PREFILL_N_PREDICT,
+        "prompt": _token_prompt_identity(spec.prompt),
+        "return_tokens": PREFILL_RETURN_TOKENS,
+        "seed": SEED,
+        "slot": spec.slot,
+        "stream": False,
+        "temperature": TEMPERATURE,
+    }
+
+
 def registered_scenarios_v1() -> dict[str, Any]:
     """Return the exact v0.1 registration for offline evidence compatibility."""
 
@@ -246,8 +339,8 @@ def registered_scenarios_v1() -> dict[str, Any]:
     }
 
 
-def registered_scenarios() -> dict[str, Any]:
-    """Return a fresh exact public registration without raw prompt text."""
+def registered_scenarios_v2() -> dict[str, Any]:
+    """Return the exact v0.2 registration for offline evidence compatibility."""
 
     state_name = SLOT_STATE_NAME.encode("utf-8")
     return {
@@ -291,7 +384,7 @@ def registered_scenarios() -> dict[str, Any]:
                 },
             },
         },
-        "process_order": list(PROCESS_ORDER),
+        "process_order": list(PROCESS_ORDER_V2),
         "save_restore": {
             "after_restart.restored": _completion_registration(SAVE_AFTER_RESTART),
             "same_process.restored": _completion_registration(SAVE_SAME_PROCESS),
@@ -301,5 +394,23 @@ def registered_scenarios() -> dict[str, Any]:
                 "sha256": sha256_bytes(state_name),
             },
         },
-        "schema": REGISTRATION_SCHEMA,
+        "schema": REGISTRATION_SCHEMA_V2,
     }
+
+
+def registered_scenarios() -> dict[str, Any]:
+    """Return a fresh exact public registration without raw prompts or tokens."""
+
+    result = registered_scenarios_v2()
+    result["process_order"] = list(PROCESS_ORDER)
+    result["schema"] = REGISTRATION_SCHEMA
+    result["token_prefix_divergence"] = {
+        case.name: {
+            "cache_off_target": _token_prompt_registration(case.cache_off_target),
+            "cache_on_target": _token_prompt_registration(case.cache_on_target),
+            "common_prefix_tokens": case.common_prefix_tokens,
+            "source": _token_prompt_registration(case.source),
+        }
+        for case in TOKEN_PREFIX_CASES
+    }
+    return result

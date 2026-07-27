@@ -13,6 +13,10 @@ def _slot(case: dict[str, Any]) -> dict[str, Any]:
     return case["idle_slot"]
 
 
+def _prefill(case: dict[str, Any]) -> dict[str, Any]:
+    return case["prefill"]
+
+
 def _same_result(left: dict[str, Any], right: dict[str, Any]) -> bool:
     return (
         left["content_sha256"] == right["content_sha256"]
@@ -193,6 +197,82 @@ def interleaving_invariants(value: dict[str, Any]) -> dict[str, bool]:
     return result
 
 
+def token_prefix_invariants(
+    value: dict[str, Any],
+    registration: dict[str, Any],
+) -> dict[str, bool]:
+    observations: list[tuple[dict[str, Any], int]] = []
+    for name, case in value.items():
+        registered = registration[name]
+        observations.extend(
+            (
+                (case["source"], registered["source"]["prompt"]["tokens"]),
+                (
+                    case["cache_on_target"],
+                    registered["cache_on_target"]["prompt"]["tokens"],
+                ),
+                (
+                    case["cache_off_target"],
+                    registered["cache_off_target"]["prompt"]["tokens"],
+                ),
+            )
+        )
+    result = {
+        "prefix_predicted_tokens_are_one": all(
+            _prefill(case)["predicted_tokens"] == 1 for case, _count in observations
+        ),
+        "prefix_prompt_accounting_consistent": all(
+            _prefill(case)["cache_tokens"] + _prefill(case)["prompt_work"]
+            == _prefill(case)["prompt_tokens"]
+            for case, _count in observations
+        ),
+        "prefix_prompt_counts_match_registration": all(
+            _prefill(case)["prompt_tokens"] == count for case, count in observations
+        ),
+        "prefix_prompt_work_views_consistent": all(
+            _prefill(case)["prompt_work"] == _slot(case)["prompt_work"]
+            for case, _count in observations
+        ),
+        "prefix_slots_idle": all(_slot(case)["idle"] for case, _count in observations),
+    }
+    for name, case in value.items():
+        registered = registration[name]
+        source_count = registered["source"]["prompt"]["tokens"]
+        target_count = registered["cache_on_target"]["prompt"]["tokens"]
+        common_prefix = registered["common_prefix_tokens"]
+        expected_cache = (
+            common_prefix - 1 if common_prefix == target_count else common_prefix
+        )
+        source = _prefill(case["source"])
+        cache_on = _prefill(case["cache_on_target"])
+        cache_off = _prefill(case["cache_off_target"])
+        prefix = f"prefix_{name}"
+        result.update(
+            {
+                f"{prefix}_source_is_cold": (
+                    source["cache_tokens"] == 0
+                    and source["prompt_work"] == source_count
+                ),
+                f"{prefix}_cache_off_is_cold": (
+                    cache_off["cache_tokens"] == 0
+                    and cache_off["prompt_work"] == target_count
+                ),
+                f"{prefix}_cache_on_cache_matches_lcp_rule": (
+                    cache_on["cache_tokens"] == expected_cache
+                ),
+                f"{prefix}_cache_on_work_matches_lcp_rule": (
+                    cache_on["prompt_work"] == target_count - expected_cache
+                ),
+                f"{prefix}_work_relation_matches_divergence": (
+                    cache_on["prompt_work"] < cache_off["prompt_work"]
+                    if expected_cache > 0
+                    else cache_on["prompt_work"] == cache_off["prompt_work"]
+                ),
+            }
+        )
+    return result
+
+
 def all_invariants_v1(evidence: dict[str, Any]) -> dict[str, bool]:
     result: dict[str, bool] = {}
     for values in (
@@ -207,7 +287,7 @@ def all_invariants_v1(evidence: dict[str, Any]) -> dict[str, bool]:
     return result
 
 
-def all_invariants(evidence: dict[str, Any]) -> dict[str, bool]:
+def all_invariants_v2(evidence: dict[str, Any]) -> dict[str, bool]:
     result: dict[str, bool] = {}
     for values in (
         cache_pairing_invariants(evidence["cache_pairing"]),
@@ -219,4 +299,17 @@ def all_invariants(evidence: dict[str, Any]) -> dict[str, bool]:
         if overlap:
             raise ValueError(f"duplicate invariant names: {sorted(overlap)}")
         result.update(values)
+    return result
+
+
+def all_invariants(evidence: dict[str, Any]) -> dict[str, bool]:
+    result = all_invariants_v2(evidence)
+    values = token_prefix_invariants(
+        evidence["token_prefix_divergence"],
+        evidence["registration"]["token_prefix_divergence"],
+    )
+    overlap = set(result) & set(values)
+    if overlap:
+        raise ValueError(f"duplicate invariant names: {sorted(overlap)}")
+    result.update(values)
     return result

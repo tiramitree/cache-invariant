@@ -6,11 +6,12 @@ import stat
 from pathlib import Path
 from typing import Any
 
-from .oracle import all_invariants, all_invariants_v1
+from .oracle import all_invariants, all_invariants_v1, all_invariants_v2
 from .pins import (
     CHECKPOINT,
     EVIDENCE_SCHEMA,
     EVIDENCE_SCHEMA_V1,
+    EVIDENCE_SCHEMA_V2,
     FIXTURE_SOURCE_REVISION,
     GGUF_SHA256,
     MANIFEST_SCHEMA,
@@ -25,7 +26,11 @@ from .pins import (
     RUNTIME_VERSION_LINE,
     TOKENIZER,
 )
-from .registration import registered_scenarios, registered_scenarios_v1
+from .registration import (
+    registered_scenarios,
+    registered_scenarios_v1,
+    registered_scenarios_v2,
+)
 from .util import (
     load_json_strict,
     reject_reparse_chain,
@@ -207,6 +212,53 @@ def _validate_interleaving(value: object) -> dict[str, Any]:
     return result
 
 
+def _validate_prefill_case(value: object, label: str) -> dict[str, Any]:
+    result = require_exact_keys(value, {"idle_slot", "prefill"}, label)
+    prefill = require_exact_keys(
+        result["prefill"],
+        {
+            "cache_tokens",
+            "predicted_tokens",
+            "prompt_tokens",
+            "prompt_work",
+        },
+        f"{label}.prefill",
+    )
+    for key in sorted(prefill):
+        require_non_negative_int(prefill[key], f"{label}.prefill.{key}")
+    slot = require_exact_keys(
+        result["idle_slot"],
+        {"idle", "prompt_work"},
+        f"{label}.idle_slot",
+    )
+    _require_bool(slot["idle"], f"{label}.idle_slot.idle")
+    require_non_negative_int(
+        slot["prompt_work"],
+        f"{label}.idle_slot.prompt_work",
+    )
+    return result
+
+
+def _validate_token_prefix(value: object) -> dict[str, Any]:
+    result = require_exact_keys(
+        value,
+        {"exact", "first_token_divergence", "shared_prefix"},
+        "token_prefix_divergence",
+    )
+    for name in sorted(result):
+        case = require_exact_keys(
+            result[name],
+            {"cache_off_target", "cache_on_target", "source"},
+            f"token_prefix_divergence.{name}",
+        )
+        for observation in sorted(case):
+            _validate_prefill_case(
+                case[observation],
+                f"token_prefix_divergence.{name}.{observation}",
+            )
+    return result
+
+
 def _validate_save_restore(value: object) -> dict[str, Any]:
     result = require_exact_keys(
         value,
@@ -253,9 +305,26 @@ def validate_evidence(value: object) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError("evidence must be an object")
     schema = value.get("schema")
-    if schema not in {EVIDENCE_SCHEMA_V1, EVIDENCE_SCHEMA}:
+    if schema not in {EVIDENCE_SCHEMA_V1, EVIDENCE_SCHEMA_V2, EVIDENCE_SCHEMA}:
         raise ValueError("evidence schema is not registered")
-    legacy = schema == EVIDENCE_SCHEMA_V1
+    if schema == EVIDENCE_SCHEMA_V1:
+        expected_version = "0.1.0"
+        expected_registration = registered_scenarios_v1()
+        include_interleaving = False
+        include_token_prefix = False
+        compute_invariants = all_invariants_v1
+    elif schema == EVIDENCE_SCHEMA_V2:
+        expected_version = "0.2.0"
+        expected_registration = registered_scenarios_v2()
+        include_interleaving = True
+        include_token_prefix = False
+        compute_invariants = all_invariants_v2
+    else:
+        expected_version = PACKAGE_VERSION
+        expected_registration = registered_scenarios()
+        include_interleaving = True
+        include_token_prefix = True
+        compute_invariants = all_invariants
     expected_keys = {
         "boundary",
         "cache_pairing",
@@ -270,8 +339,10 @@ def validate_evidence(value: object) -> dict[str, Any]:
         "source_revision",
         "transport",
     }
-    if not legacy:
+    if include_interleaving:
         expected_keys.add("interleaving_isolation")
+    if include_token_prefix:
+        expected_keys.add("token_prefix_divergence")
     evidence = require_exact_keys(
         value,
         expected_keys,
@@ -282,13 +353,9 @@ def validate_evidence(value: object) -> dict[str, Any]:
         {"name", "version"},
         "producer",
     )
-    expected_version = "0.1.0" if legacy else PACKAGE_VERSION
     if producer != {"name": "cache-invariant", "version": expected_version}:
         raise ValueError("evidence producer is not registered")
     require_source_revision(evidence["source_revision"], "source_revision")
-    expected_registration = (
-        registered_scenarios_v1() if legacy else registered_scenarios()
-    )
     if evidence["registration"] != expected_registration:
         raise ValueError("scenario registration differs")
 
@@ -336,7 +403,9 @@ def validate_evidence(value: object) -> dict[str, Any]:
         "asset_platform": platform_key,
         "asset_sha256": RUNTIME_ASSETS[platform_key].sha256,
         "configured_context_total": (
-            RUNTIME_CONTEXT_TOTAL_V1 if legacy else RUNTIME_CONTEXT_TOTAL
+            RUNTIME_CONTEXT_TOTAL_V1
+            if schema == EVIDENCE_SCHEMA_V1
+            else RUNTIME_CONTEXT_TOTAL
         ),
         "cpu_only": True,
         "offline": True,
@@ -379,10 +448,12 @@ def validate_evidence(value: object) -> dict[str, Any]:
 
     _validate_cache_pairing(evidence["cache_pairing"])
     _validate_cancellation(evidence["cancellation_reuse"])
-    if not legacy:
+    if include_interleaving:
         _validate_interleaving(evidence["interleaving_isolation"])
+    if include_token_prefix:
+        _validate_token_prefix(evidence["token_prefix_divergence"])
     _validate_save_restore(evidence["save_restore"])
-    computed = all_invariants_v1(evidence) if legacy else all_invariants(evidence)
+    computed = compute_invariants(evidence)
     invariants = require_exact_keys(
         evidence["invariants"],
         set(computed),

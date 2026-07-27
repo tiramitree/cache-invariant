@@ -9,6 +9,9 @@ It asks bounded questions:
 
 - Does an identical cache-on request reduce observed prompt work while a
   matched cache-off pair does not?
+- For fixed direct-token prompts, do exact reuse, shared-prefix reuse, and
+  first-token divergence produce the registered cache/work matrix relative to
+  matched cache-off requests?
 - After a streaming client disconnects, does the selected slot return to idle,
   accept a new request, and match a clean-slot result?
 - When two registered streams are launched behind one start barrier, do both
@@ -63,6 +66,11 @@ registered version identifiers. It excludes:
 - raw server logs;
 - wall-clock latency and throughput.
 
+The schema-v3 direct-token lane explicitly sends `n_predict=1` and requires the
+pinned runtime to report `predicted_tokens=1`. Generated content and generated
+token values are discarded and never compared. This lane does not claim
+output-free execution.
+
 The output directory contains exactly `evidence.json`, `junit.xml`, and
 `manifest.json`. `verify` is offline and fail-closed: it validates the exact
 schema, registered runtime/model pins and request registration, recomputes every
@@ -73,12 +81,17 @@ lowercase 40-hex revision being exercised.
 ## Current evidence status
 
 The bundled Windows [reference evidence](evidence/README.md) preserves the
-29-invariant v0.1 observation and records the current 57-invariant v0.2
+29-invariant v0.1 observation and records the 57-invariant v0.2
 observation, each bound to the exact source revision exercised. They are local
 observations, not independent reproduction, external adoption, production use,
 or cross-platform reference results. The workflow in
 `.github/workflows/ci.yml` separately exercises Windows and Ubuntu on free
 GitHub Actions without uploading generated evidence.
+
+The local v0.3.0 candidate adds the registered three-row direct-token
+prefix-divergence lane. No schema-v3 reference bundle is committed, so this
+source candidate does not present the short-row matrix as a published
+observation.
 
 ## Design and boundaries
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0
+
+- Add a three-row direct-token prefix-divergence lane covering exact reuse,
+  shared-prefix reuse, and first-token divergence against matched cache-off
+  requests.
+- Record only bounded response cache/prompt/prediction counts and idle-slot
+  prompt work; discard generated content and generated token values.
+- Register one predicted token explicitly and make no output-free claim.
+- Add strict schema-v3 verification while preserving byte-exact offline
+  verification of the bundled schema-v1 and schema-v2 evidence.
+- Leave v3 reference evidence uncommitted until the complete registered lane is
+  run and verified from a source-bound revision.
+
 ## 0.2.0
 
 - Add a source-bound dual-stream interleaving and cancellation-isolation lane

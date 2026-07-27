@@ -23,3 +23,9 @@ release, or artifact publication, a separate private denylist must scan:
 
 A clean public source scan is not a claim that unrelated history, forks, or
 external systems are globally privacy-clean.
+
+The schema-v3 prefix lane keeps its small synthetic direct-token arrays in
+source registration only. Evidence contains their token counts and canonical
+JSON SHA-256 identities, not the arrays. The lane explicitly requests one
+generated token, but generated content and token values are discarded before
+normalization and cannot enter evidence.

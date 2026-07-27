@@ -1,5 +1,13 @@
 # Reference evidence
 
+## v0.3.0 candidate status
+
+The schema-v3 source candidate adds a three-row direct-token
+prefix-divergence protocol and verifier, but this tree contains no v0.3.0
+reference bundle. The committed references below remain the complete published
+runtime observations. The current verifier must continue to validate both
+bundles byte-for-byte.
+
 ## v0.2.0 Windows
 
 `reference-v0.2.0-windows` is a normalized observation of the registered
@@ -42,7 +50,7 @@ condition or a concurrency/liveness claim.
 - platform: `windows-x86_64`
 - registered invariants: 29/29 true
 
-The current verifier remains backward-compatible:
+The schema-v3 verifier remains backward-compatible:
 
 ```text
 cache-invariant verify evidence/reference-v0.1.0-windows

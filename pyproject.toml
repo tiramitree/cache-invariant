@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cache-invariant"
-version = "0.2.0"
-description = "Version-pinned inference cache correctness and interleaving-isolation lab"
+version = "0.3.0"
+description = "Version-pinned inference cache correctness and isolation lab"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0 AND MIT"

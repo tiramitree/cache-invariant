@@ -7,6 +7,9 @@ fixture, request registration, and source revision recorded by the bundle, on
 the operating system named by the registered asset:
 
 - matched cache-on/off requests satisfied the recorded prompt-work oracle;
+- in a schema-v3 bundle, the three registered direct-token rows satisfied the
+  exact/full-prefix-last-token, shared-prefix, and first-token-divergence
+  cache/work rules against matched cache-off requests;
 - a selected slot was observed active, returned idle after a client
   disconnect, and produced the same normalized result as a clean slot when
   reused;
@@ -28,6 +31,9 @@ ephemerally without publishing their bundles.
 ## It does not support
 
 - model quality, semantic correctness, safety, or useful generated text;
+- output-free execution: the direct-token lane explicitly requests and records
+  one predicted token, then discards generated values rather than evaluating
+  them;
 - absolute latency, throughput, cost, memory efficiency, or competitive rank;
 - production readiness, security certification, or complete state isolation;
 - scheduling fairness, simultaneous token generation, head-of-line-blocking
@@ -44,3 +50,8 @@ prove that no unobserved internal state exists.
 The dual-stream record retains `both_processing_observed` and
 `survivor_active_after_first_disconnect` as non-gating observations. They are
 not used to claim concurrent processing or survivor liveness.
+
+The committed v0.1 and v0.2 Windows references predate the schema-v3
+direct-token lane. A v3 source candidate without a verified v3 bundle supports
+the protocol and verifier design, not a published short-row runtime
+observation.
