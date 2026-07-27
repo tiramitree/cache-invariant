@@ -17,6 +17,9 @@ the operating system named by the registered asset:
   JUnit, and privacy-shape checks.
 
 These are controlled observations for one version and one tiny fixture.
+The committed reference bundle is one Windows observation bound to its exact
+source revision. CI generates separate Windows and Ubuntu observations
+ephemerally without publishing their bundles.
 
 ## It does not support
 

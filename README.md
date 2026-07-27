@@ -67,15 +67,17 @@ lowercase 40-hex revision being exercised.
 
 ## Current evidence status
 
-This repository is a `v0.1.0` implementation candidate. It intentionally does
-not include a public reference-evidence bundle or claim independent
-reproduction, external adoption, production use, or cross-platform success.
-The workflow in `.github/workflows/ci.yml` is designed to exercise Windows and
-Ubuntu on free GitHub Actions without uploading generated evidence.
+The bundled Windows [reference evidence](evidence/README.md) records 29
+registered invariants and binds them to the exact source revision exercised.
+It is one local observation, not independent reproduction, external adoption,
+production use, or a cross-platform reference result. The workflow in
+`.github/workflows/ci.yml` separately exercises Windows and Ubuntu on free
+GitHub Actions without uploading generated evidence.
 
 ## Design and boundaries
 
 - [Architecture and evidence contract](docs/ARCHITECTURE.md)
+- [Reference evidence](evidence/README.md)
 - [Claim boundaries](docs/CLAIM_BOUNDARIES.md)
 - [Prior art and differentiation](docs/PRIOR_ART.md)
 - [Privacy and publication gate](docs/PRIVACY.md)

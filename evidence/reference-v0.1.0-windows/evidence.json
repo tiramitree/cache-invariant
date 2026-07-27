@@ -1,0 +1,410 @@
+{
+  "boundary": {
+    "absolute_paths_included": false,
+    "generated_text_included": false,
+    "hostnames_included": false,
+    "performance_claim_included": false,
+    "ports_included": false,
+    "raw_server_logs_included": false,
+    "raw_token_lists_included": false
+  },
+  "cache_pairing": {
+    "cold_cache_off": {
+      "completion": {
+        "content_bytes": 25,
+        "content_sha256": "2bf29b7023ce11ba8f410123056e43953ecccaef6c3f5f96e749c8d6013c595e",
+        "predicted_tokens": 8,
+        "prompt_work": 5,
+        "response_cached_tokens": 12,
+        "token_count": 8,
+        "tokens_sha256": "650c1a8aae7bd44793eb770eda01e74a6d659e3f571f996a285ff9f7792cbe93"
+      },
+      "idle_slot": {
+        "idle": true,
+        "prompt_work": 5
+      }
+    },
+    "cold_cache_on": {
+      "completion": {
+        "content_bytes": 25,
+        "content_sha256": "2bf29b7023ce11ba8f410123056e43953ecccaef6c3f5f96e749c8d6013c595e",
+        "predicted_tokens": 8,
+        "prompt_work": 5,
+        "response_cached_tokens": 12,
+        "token_count": 8,
+        "tokens_sha256": "650c1a8aae7bd44793eb770eda01e74a6d659e3f571f996a285ff9f7792cbe93"
+      },
+      "idle_slot": {
+        "idle": true,
+        "prompt_work": 5
+      }
+    },
+    "repeat_cache_off": {
+      "completion": {
+        "content_bytes": 25,
+        "content_sha256": "2bf29b7023ce11ba8f410123056e43953ecccaef6c3f5f96e749c8d6013c595e",
+        "predicted_tokens": 8,
+        "prompt_work": 5,
+        "response_cached_tokens": 12,
+        "token_count": 8,
+        "tokens_sha256": "650c1a8aae7bd44793eb770eda01e74a6d659e3f571f996a285ff9f7792cbe93"
+      },
+      "idle_slot": {
+        "idle": true,
+        "prompt_work": 5
+      }
+    },
+    "repeat_cache_on": {
+      "completion": {
+        "content_bytes": 25,
+        "content_sha256": "2bf29b7023ce11ba8f410123056e43953ecccaef6c3f5f96e749c8d6013c595e",
+        "predicted_tokens": 8,
+        "prompt_work": 1,
+        "response_cached_tokens": 12,
+        "token_count": 8,
+        "tokens_sha256": "650c1a8aae7bd44793eb770eda01e74a6d659e3f571f996a285ff9f7792cbe93"
+      },
+      "idle_slot": {
+        "idle": true,
+        "prompt_work": 1
+      }
+    }
+  },
+  "cancellation_reuse": {
+    "clean_baseline": {
+      "completion": {
+        "content_bytes": 26,
+        "content_sha256": "2621be6c8367ab31e07b14e11291b88b17470f727ca925e13889161b73628695",
+        "predicted_tokens": 16,
+        "prompt_work": 25,
+        "response_cached_tokens": 40,
+        "token_count": 16,
+        "tokens_sha256": "c22e8ccad210bd5d70286d053a45d9462e035cc49b23ee774b16e82f39e4626d"
+      },
+      "idle_slot": {
+        "idle": true,
+        "prompt_work": 25
+      }
+    },
+    "disconnect": {
+      "active_processing_observed": true,
+      "first_event_nonterminal": true,
+      "first_event_observed": true,
+      "idle_after_disconnect": true
+    },
+    "reused_slot": {
+      "completion": {
+        "content_bytes": 26,
+        "content_sha256": "2621be6c8367ab31e07b14e11291b88b17470f727ca925e13889161b73628695",
+        "predicted_tokens": 16,
+        "prompt_work": 25,
+        "response_cached_tokens": 40,
+        "token_count": 16,
+        "tokens_sha256": "c22e8ccad210bd5d70286d053a45d9462e035cc49b23ee774b16e82f39e4626d"
+      },
+      "idle_slot": {
+        "idle": true,
+        "prompt_work": 25
+      }
+    }
+  },
+  "fixture": {
+    "checkpoint_sha256": "b0a507e7ad0f626624f17112325e66691f9076d622e1d3274d103d00299f2696",
+    "model_sha256": "da5a97120b643453a8bf0482999ee087d1bd11e75c6cc5a3dc71d2ee3c89c92d",
+    "source_revision": "0bd21da7698eaf29a0d7de3992de8a46ef624add",
+    "tokenizer_sha256": "037cb335abb25d1fa9e8ecae30ed2a3a8ace9302862ebcdc05d51a6bbb10c312"
+  },
+  "invariants": {
+    "cache_all_results_equal": true,
+    "cache_off_response_prompt_work_equal": true,
+    "cache_off_slot_prompt_work_equal": true,
+    "cache_on_response_prompt_work_strictly_reduced": true,
+    "cache_on_slot_prompt_work_strictly_reduced": true,
+    "cache_prompt_work_views_consistent": true,
+    "cache_slots_idle": true,
+    "cancel_active_processing_observed": true,
+    "cancel_first_event_nonterminal": true,
+    "cancel_first_event_observed": true,
+    "cancel_idle_after_disconnect": true,
+    "cancel_prompt_work_views_consistent": true,
+    "cancel_reuse_prompt_work_matches_clean_slot": true,
+    "cancel_reuse_result_matches_clean_slot": true,
+    "cancel_reused_slot_idle": true,
+    "restart_response_prompt_work_strictly_reduced": true,
+    "restart_restore_count_matches_save": true,
+    "restart_restore_result_matches_source": true,
+    "restart_slot_prompt_work_strictly_reduced": true,
+    "restore_prompt_work_views_consistent": true,
+    "restore_slots_idle": true,
+    "same_process_response_prompt_work_strictly_reduced": true,
+    "same_process_restore_count_matches_save": true,
+    "same_process_restore_result_matches_source": true,
+    "same_process_slot_prompt_work_strictly_reduced": true,
+    "save_reports_positive_tokens": true,
+    "server_process_restart_confirmed": true,
+    "slot_state_file_nonempty": true,
+    "slot_state_file_unchanged_across_restart": true
+  },
+  "producer": {
+    "name": "cache-invariant",
+    "version": "0.1.0"
+  },
+  "registration": {
+    "cache_pairing": {
+      "cold_cache_off": {
+        "cache_prompt": false,
+        "n_predict": 8,
+        "prompt": {
+          "bytes": 16,
+          "sha256": "e286222c229ec73b1bc520d88583191572ae0cbbaa66ea68053994a5e50ac87a"
+        },
+        "return_tokens": true,
+        "seed": 42,
+        "slot": 1,
+        "stream": false,
+        "temperature": 0
+      },
+      "cold_cache_on": {
+        "cache_prompt": true,
+        "n_predict": 8,
+        "prompt": {
+          "bytes": 16,
+          "sha256": "e286222c229ec73b1bc520d88583191572ae0cbbaa66ea68053994a5e50ac87a"
+        },
+        "return_tokens": true,
+        "seed": 42,
+        "slot": 0,
+        "stream": false,
+        "temperature": 0
+      },
+      "repeat_cache_off": {
+        "cache_prompt": false,
+        "n_predict": 8,
+        "prompt": {
+          "bytes": 16,
+          "sha256": "e286222c229ec73b1bc520d88583191572ae0cbbaa66ea68053994a5e50ac87a"
+        },
+        "return_tokens": true,
+        "seed": 42,
+        "slot": 1,
+        "stream": false,
+        "temperature": 0
+      },
+      "repeat_cache_on": {
+        "cache_prompt": true,
+        "n_predict": 8,
+        "prompt": {
+          "bytes": 16,
+          "sha256": "e286222c229ec73b1bc520d88583191572ae0cbbaa66ea68053994a5e50ac87a"
+        },
+        "return_tokens": true,
+        "seed": 42,
+        "slot": 0,
+        "stream": false,
+        "temperature": 0
+      }
+    },
+    "cancellation_reuse": {
+      "clean_baseline": {
+        "cache_prompt": false,
+        "n_predict": 16,
+        "prompt": {
+          "bytes": 37,
+          "sha256": "7d8b01b430b6a787f2713be4b9607ca69bdbf7e8ad1e8d3278105202afb6368e"
+        },
+        "return_tokens": true,
+        "seed": 42,
+        "slot": 1,
+        "stream": false,
+        "temperature": 0
+      },
+      "disconnect": {
+        "active_observation_wait_ms": 2000,
+        "cache_prompt": true,
+        "ignore_eos": true,
+        "n_predict": 100000,
+        "n_probs": 512,
+        "prompt": {
+          "bytes": 24,
+          "sha256": "fb6c86b714f411b10aa339e9789a7902843ae34e47484e993be4eccb00eae024"
+        },
+        "receive_buffer_bytes": 1024,
+        "return_tokens": false,
+        "seed": 42,
+        "slot": 0,
+        "stream": true,
+        "temperature": 0
+      },
+      "reused_slot": {
+        "cache_prompt": false,
+        "n_predict": 16,
+        "prompt": {
+          "bytes": 37,
+          "sha256": "7d8b01b430b6a787f2713be4b9607ca69bdbf7e8ad1e8d3278105202afb6368e"
+        },
+        "return_tokens": true,
+        "seed": 42,
+        "slot": 0,
+        "stream": false,
+        "temperature": 0
+      }
+    },
+    "process_order": [
+      "start_server_1",
+      "cache_pairing.erase_slot_0",
+      "cache_pairing.erase_slot_1",
+      "cache_pairing.cold_cache_on",
+      "cache_pairing.repeat_cache_on",
+      "cache_pairing.cold_cache_off",
+      "cache_pairing.repeat_cache_off",
+      "cancellation_reuse.erase_slot_0",
+      "cancellation_reuse.erase_slot_1",
+      "cancellation_reuse.clean_baseline",
+      "cancellation_reuse.disconnect",
+      "cancellation_reuse.reused_slot",
+      "save_restore.erase_slot_0",
+      "save_restore.erase_slot_1",
+      "save_restore.source",
+      "save_restore.save_slot_0",
+      "save_restore.restore_slot_1",
+      "save_restore.same_process.restored",
+      "stop_server_1",
+      "hash_slot_state_before_restart",
+      "start_server_2",
+      "save_restore.erase_slot_0",
+      "save_restore.restore_slot_0",
+      "save_restore.after_restart.restored",
+      "stop_server_2",
+      "hash_slot_state_after_restart"
+    ],
+    "save_restore": {
+      "after_restart.restored": {
+        "cache_prompt": true,
+        "n_predict": 8,
+        "prompt": {
+          "bytes": 17,
+          "sha256": "79535d4550961308fe410b2e044957bf629c2a963c8ec7c04256f210364ec80c"
+        },
+        "return_tokens": true,
+        "seed": 42,
+        "slot": 0,
+        "stream": false,
+        "temperature": 0
+      },
+      "same_process.restored": {
+        "cache_prompt": true,
+        "n_predict": 8,
+        "prompt": {
+          "bytes": 17,
+          "sha256": "79535d4550961308fe410b2e044957bf629c2a963c8ec7c04256f210364ec80c"
+        },
+        "return_tokens": true,
+        "seed": 42,
+        "slot": 1,
+        "stream": false,
+        "temperature": 0
+      },
+      "source": {
+        "cache_prompt": true,
+        "n_predict": 8,
+        "prompt": {
+          "bytes": 17,
+          "sha256": "79535d4550961308fe410b2e044957bf629c2a963c8ec7c04256f210364ec80c"
+        },
+        "return_tokens": true,
+        "seed": 42,
+        "slot": 0,
+        "stream": false,
+        "temperature": 0
+      },
+      "state_filename": {
+        "bytes": 27,
+        "sha256": "dd482c94383531d79c64af6f643e33f0b9af491f33799ab9b963bdaf8f906fb5"
+      }
+    },
+    "schema": "cache-invariant-registration-v1"
+  },
+  "runtime": {
+    "adapter": "llama.cpp-server",
+    "asset_platform": "windows-x86_64",
+    "asset_sha256": "52133a0a5a8f6035b1bdd2f89c3425ea8b742413d9bdb9a2dee30e3a1681b18c",
+    "configured_context_total": 256,
+    "cpu_only": true,
+    "offline": true,
+    "release": "b10107",
+    "server_sha256": "af3e56d6bdb84a9b6bd50f6ad748809370bc29be42d58088041408b2933d80f7",
+    "slot_count": 2,
+    "source_commit": "c0bc8591e8815c63cb01dd3f051a8b0df02501c9",
+    "version_line": "version: 10107 (c0bc8591e)"
+  },
+  "save_restore": {
+    "after_restart": {
+      "restored": {
+        "completion": {
+          "content_bytes": 25,
+          "content_sha256": "2bf29b7023ce11ba8f410123056e43953ecccaef6c3f5f96e749c8d6013c595e",
+          "predicted_tokens": 8,
+          "prompt_work": 1,
+          "response_cached_tokens": 18,
+          "token_count": 8,
+          "tokens_sha256": "650c1a8aae7bd44793eb770eda01e74a6d659e3f571f996a285ff9f7792cbe93"
+        },
+        "idle_slot": {
+          "idle": true,
+          "prompt_work": 1
+        }
+      },
+      "restored_tokens": 18
+    },
+    "process_restart_confirmed": true,
+    "same_process": {
+      "restored": {
+        "completion": {
+          "content_bytes": 25,
+          "content_sha256": "2bf29b7023ce11ba8f410123056e43953ecccaef6c3f5f96e749c8d6013c595e",
+          "predicted_tokens": 8,
+          "prompt_work": 1,
+          "response_cached_tokens": 18,
+          "token_count": 8,
+          "tokens_sha256": "650c1a8aae7bd44793eb770eda01e74a6d659e3f571f996a285ff9f7792cbe93"
+        },
+        "idle_slot": {
+          "idle": true,
+          "prompt_work": 1
+        }
+      },
+      "restored_tokens": 18
+    },
+    "saved_tokens": 18,
+    "slot_state_after_restart": {
+      "bytes": 11960,
+      "sha256": "c9443c2b4ed83f084ba4ea31cd83a5a4d7233cda07673f436db9fcf70a2c5110"
+    },
+    "slot_state_before_restart": {
+      "bytes": 11960,
+      "sha256": "c9443c2b4ed83f084ba4ea31cd83a5a4d7233cda07673f436db9fcf70a2c5110"
+    },
+    "source": {
+      "completion": {
+        "content_bytes": 25,
+        "content_sha256": "2bf29b7023ce11ba8f410123056e43953ecccaef6c3f5f96e749c8d6013c595e",
+        "predicted_tokens": 8,
+        "prompt_work": 11,
+        "response_cached_tokens": 18,
+        "token_count": 8,
+        "tokens_sha256": "650c1a8aae7bd44793eb770eda01e74a6d659e3f571f996a285ff9f7792cbe93"
+      },
+      "idle_slot": {
+        "idle": true,
+        "prompt_work": 11
+      }
+    }
+  },
+  "schema": "cache-invariant-evidence-v1",
+  "source_revision": "6104645dcb56b681d66f4739ec2399e431a72a30",
+  "transport": {
+    "api_key_enabled": true,
+    "endpoint": "loopback-redacted",
+    "proxy_bypass": true
+  }
+}
